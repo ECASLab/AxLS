@@ -1,0 +1,489 @@
+
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+   <node name="NAND2_X1" var="_066_">
+      <input name="A1" wire="Y[1]" />
+      <input name="A2" wire="X[1]" />
+      <output name="ZN" t0="24" t1="75" tc="187204" wire="_025_" />
+   </node>
+   <node name="NOR2_X1" var="_067_">
+      <input name="A1" wire="Y[1]" />
+      <input name="A2" wire="X[1]" />
+      <output name="ZN" t0="74" t1="25" tc="187898" wire="_026_" />
+   </node>
+   <node name="XOR2_X1" var="_068_">
+      <input name="A1" wire="Y[1]" />
+      <input name="A2" wire="X[1]" />
+      <output name="Z" t0="49" t1="50" tc="250308" wire="_027_" />
+   </node>
+   <node name="NAND2_X1" var="_069_">
+      <input name="A1" wire="Y[0]" />
+      <input name="A2" wire="X[0]" />
+      <output name="ZN" t0="25" t1="74" tc="187401" wire="_028_" />
+   </node>
+   <node name="XNOR2_X1" var="_070_">
+      <input name="A1" wire="_027_" />
+      <input name="A2" wire="_028_" />
+      <output name="ZN" wire="S[1]" />
+   </node>
+   <node name="AND2_X1" var="_071_">
+      <input name="A1" wire="Y[2]" />
+      <input name="A2" wire="X[2]" />
+      <output name="Z" t0="75" t1="24" tc="186654" wire="_029_" />
+   </node>
+   <node name="NAND2_X1" var="_072_">
+      <input name="A1" wire="Y[2]" />
+      <input name="A2" wire="X[2]" />
+      <output name="ZN" t0="24" t1="75" tc="186654" wire="_030_" />
+   </node>
+   <node name="OR2_X1" var="_073_">
+      <input name="A1" wire="Y[2]" />
+      <input name="A2" wire="X[2]" />
+      <output name="Z" t0="25" t1="74" tc="187379" wire="_031_" />
+   </node>
+   <node name="NAND2_X1" var="_074_">
+      <input name="A1" wire="_030_" />
+      <input name="A2" wire="_031_" />
+      <output name="ZN" t0="50" t1="49" tc="250165" wire="_032_" />
+   </node>
+   <node name="OAI21_X1" var="_075_">
+      <input name="A1" wire="_026_" />
+      <input name="A2" wire="_028_" />
+      <input name="B" wire="_025_" />
+      <output name="ZN" t0="62" t1="37" tc="233980" wire="_033_" />
+   </node>
+   <node name="XNOR2_X1" var="_076_">
+      <input name="A1" wire="_032_" />
+      <input name="A2" wire="_033_" />
+      <output name="ZN" wire="S[2]" />
+   </node>
+   <node name="NAND2_X1" var="_077_">
+      <input name="A1" wire="Y[3]" />
+      <input name="A2" wire="X[3]" />
+      <output name="ZN" t0="24" t1="75" tc="187353" wire="_034_" />
+   </node>
+   <node name="NOR2_X1" var="_078_">
+      <input name="A1" wire="Y[3]" />
+      <input name="A2" wire="X[3]" />
+      <output name="ZN" t0="74" t1="25" tc="188241" wire="_035_" />
+   </node>
+   <node name="XOR2_X1" var="_079_">
+      <input name="A1" wire="Y[3]" />
+      <input name="A2" wire="X[3]" />
+      <output name="Z" t0="50" t1="49" tc="250426" wire="_036_" />
+   </node>
+   <node name="AOI21_X1" var="_080_">
+      <input name="A1" wire="_031_" />
+      <input name="A2" wire="_033_" />
+      <input name="B" wire="_029_" />
+      <output name="ZN" t0="43" t1="56" tc="245176" wire="_037_" />
+   </node>
+   <node name="XNOR2_X1" var="_081_">
+      <input name="A1" wire="_036_" />
+      <input name="A2" wire="_037_" />
+      <output name="ZN" wire="S[3]" />
+   </node>
+   <node name="AND2_X1" var="_082_">
+      <input name="A1" wire="Y[4]" />
+      <input name="A2" wire="X[4]" />
+      <output name="Z" t0="75" t1="24" tc="187431" wire="_038_" />
+   </node>
+   <node name="NAND2_X1" var="_083_">
+      <input name="A1" wire="Y[4]" />
+      <input name="A2" wire="X[4]" />
+      <output name="ZN" t0="24" t1="75" tc="187431" wire="_039_" />
+   </node>
+   <node name="OR2_X1" var="_084_">
+      <input name="A1" wire="Y[4]" />
+      <input name="A2" wire="X[4]" />
+      <output name="Z" t0="25" t1="74" tc="187919" wire="_040_" />
+   </node>
+   <node name="NAND2_X1" var="_085_">
+      <input name="A1" wire="_039_" />
+      <input name="A2" wire="_040_" />
+      <output name="ZN" t0="49" t1="50" tc="250140" wire="_041_" />
+   </node>
+   <node name="AOI21_X1" var="_086_">
+      <input name="A1" wire="_034_" />
+      <input name="A2" wire="_037_" />
+      <input name="B" wire="_035_" />
+      <output name="ZN" t0="53" t1="46" tc="248321" wire="_042_" />
+   </node>
+   <node name="XNOR2_X1" var="_087_">
+      <input name="A1" wire="_041_" />
+      <input name="A2" wire="_042_" />
+      <output name="ZN" wire="S[4]" />
+   </node>
+   <node name="NAND2_X1" var="_088_">
+      <input name="A1" wire="Y[5]" />
+      <input name="A2" wire="X[5]" />
+      <output name="ZN" t0="24" t1="75" tc="187038" wire="_043_" />
+   </node>
+   <node name="XNOR2_X1" var="_089_">
+      <input name="A1" wire="Y[5]" />
+      <input name="A2" wire="X[5]" />
+      <output name="ZN" t0="50" t1="49" tc="250073" wire="_044_" />
+   </node>
+   <node name="AOI21_X1" var="_090_">
+      <input name="A1" wire="_040_" />
+      <input name="A2" wire="_042_" />
+      <input name="B" wire="_038_" />
+      <output name="ZN" t0="48" t1="51" tc="249821" wire="_045_" />
+   </node>
+   <node name="XOR2_X1" var="_091_">
+      <input name="A1" wire="_044_" />
+      <input name="A2" wire="_045_" />
+      <output name="Z" wire="S[5]" />
+   </node>
+   <node name="AND2_X1" var="_092_">
+      <input name="A1" wire="Y[6]" />
+      <input name="A2" wire="X[6]" />
+      <output name="Z" t0="75" t1="24" tc="187000" wire="_046_" />
+   </node>
+   <node name="NAND2_X1" var="_093_">
+      <input name="A1" wire="Y[6]" />
+      <input name="A2" wire="X[6]" />
+      <output name="ZN" t0="24" t1="75" tc="187000" wire="_047_" />
+   </node>
+   <node name="OR2_X1" var="_094_">
+      <input name="A1" wire="Y[6]" />
+      <input name="A2" wire="X[6]" />
+      <output name="Z" t0="25" t1="74" tc="187689" wire="_048_" />
+   </node>
+   <node name="NAND2_X1" var="_095_">
+      <input name="A1" wire="_047_" />
+      <input name="A2" wire="_048_" />
+      <output name="ZN" t0="50" t1="49" tc="250741" wire="_049_" />
+   </node>
+   <node name="OAI21_X1" var="_096_">
+      <input name="A1" wire="_044_" />
+      <input name="A2" wire="_045_" />
+      <input name="B" wire="_043_" />
+      <output name="ZN" t0="50" t1="49" tc="249871" wire="_050_" />
+   </node>
+   <node name="XNOR2_X1" var="_097_">
+      <input name="A1" wire="_049_" />
+      <input name="A2" wire="_050_" />
+      <output name="ZN" wire="S[6]" />
+   </node>
+   <node name="NAND2_X1" var="_098_">
+      <input name="A1" wire="Y[7]" />
+      <input name="A2" wire="X[7]" />
+      <output name="ZN" t0="25" t1="74" tc="187806" wire="_051_" />
+   </node>
+   <node name="NOR2_X1" var="_099_">
+      <input name="A1" wire="Y[7]" />
+      <input name="A2" wire="X[7]" />
+      <output name="ZN" t0="75" t1="24" tc="186995" wire="_052_" />
+   </node>
+   <node name="XOR2_X1" var="_100_">
+      <input name="A1" wire="Y[7]" />
+      <input name="A2" wire="X[7]" />
+      <output name="Z" t0="50" t1="49" tc="250013" wire="_053_" />
+   </node>
+   <node name="AOI21_X1" var="_101_">
+      <input name="A1" wire="_048_" />
+      <input name="A2" wire="_050_" />
+      <input name="B" wire="_046_" />
+      <output name="ZN" t0="49" t1="50" tc="249727" wire="_054_" />
+   </node>
+   <node name="XNOR2_X1" var="_102_">
+      <input name="A1" wire="_053_" />
+      <input name="A2" wire="_054_" />
+      <output name="ZN" wire="S[7]" />
+   </node>
+   <node name="AND2_X1" var="_103_">
+      <input name="A1" wire="Y[8]" />
+      <input name="A2" wire="X[8]" />
+      <output name="Z" t0="74" t1="25" tc="187782" wire="_055_" />
+   </node>
+   <node name="NAND2_X1" var="_104_">
+      <input name="A1" wire="Y[8]" />
+      <input name="A2" wire="X[8]" />
+      <output name="ZN" t0="25" t1="74" tc="187782" wire="_056_" />
+   </node>
+   <node name="OR2_X1" var="_105_">
+      <input name="A1" wire="Y[8]" />
+      <input name="A2" wire="X[8]" />
+      <output name="Z" t0="25" t1="74" tc="187306" wire="_057_" />
+   </node>
+   <node name="NAND2_X1" var="_106_">
+      <input name="A1" wire="_056_" />
+      <input name="A2" wire="_057_" />
+      <output name="ZN" t0="49" t1="50" tc="249450" wire="_058_" />
+   </node>
+   <node name="AOI21_X1" var="_107_">
+      <input name="A1" wire="_051_" />
+      <input name="A2" wire="_054_" />
+      <input name="B" wire="_052_" />
+      <output name="ZN" t0="50" t1="49" tc="249647" wire="_059_" />
+   </node>
+   <node name="XNOR2_X1" var="_108_">
+      <input name="A1" wire="_058_" />
+      <input name="A2" wire="_059_" />
+      <output name="ZN" wire="S[8]" />
+   </node>
+   <node name="NAND2_X1" var="_109_">
+      <input name="A1" wire="Y[9]" />
+      <input name="A2" wire="X[9]" />
+      <output name="ZN" t0="24" t1="75" tc="187694" wire="_060_" />
+   </node>
+   <node name="NOR2_X1" var="_110_">
+      <input name="A1" wire="Y[9]" />
+      <input name="A2" wire="X[9]" />
+      <output name="ZN" t0="74" t1="25" tc="187349" wire="_061_" />
+   </node>
+   <node name="XOR2_X1" var="_111_">
+      <input name="A1" wire="Y[9]" />
+      <input name="A2" wire="X[9]" />
+      <output name="Z" t0="49" t1="50" tc="250767" wire="_062_" />
+   </node>
+   <node name="AOI21_X1" var="_112_">
+      <input name="A1" wire="_057_" />
+      <input name="A2" wire="_059_" />
+      <input name="B" wire="_055_" />
+      <output name="ZN" t0="49" t1="50" tc="249824" wire="_063_" />
+   </node>
+   <node name="XNOR2_X1" var="_113_">
+      <input name="A1" wire="_062_" />
+      <input name="A2" wire="_063_" />
+      <output name="ZN" wire="S[9]" />
+   </node>
+   <node name="AND2_X1" var="_114_">
+      <input name="A1" wire="Y[10]" />
+      <input name="A2" wire="X[10]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_064_" />
+   </node>
+   <node name="NAND2_X1" var="_115_">
+      <input name="A1" wire="Y[10]" />
+      <input name="A2" wire="X[10]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_065_" />
+   </node>
+   <node name="OR2_X1" var="_116_">
+      <input name="A1" wire="Y[10]" />
+      <input name="A2" wire="X[10]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_000_" />
+   </node>
+   <node name="NAND2_X1" var="_117_">
+      <input name="A1" wire="_065_" />
+      <input name="A2" wire="_000_" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_001_" />
+   </node>
+   <node name="OAI21_X1" var="_118_">
+      <input name="A1" wire="_061_" />
+      <input name="A2" wire="_063_" />
+      <input name="B" wire="_060_" />
+      <output name="ZN" t0="50" t1="49" tc="249658" wire="_002_" />
+   </node>
+   <node name="XNOR2_X1" var="_119_">
+      <input name="A1" wire="_001_" />
+      <input name="A2" wire="_002_" />
+      <output name="ZN" wire="S[10]" />
+   </node>
+   <node name="NAND2_X1" var="_120_">
+      <input name="A1" wire="Y[11]" />
+      <input name="A2" wire="X[11]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_003_" />
+   </node>
+   <node name="NOR2_X1" var="_121_">
+      <input name="A1" wire="Y[11]" />
+      <input name="A2" wire="X[11]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_004_" />
+   </node>
+   <node name="XOR2_X1" var="_122_">
+      <input name="A1" wire="Y[11]" />
+      <input name="A2" wire="X[11]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_005_" />
+   </node>
+   <node name="AOI21_X1" var="_123_">
+      <input name="A1" wire="_000_" />
+      <input name="A2" wire="_002_" />
+      <input name="B" wire="_064_" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_006_" />
+   </node>
+   <node name="XNOR2_X1" var="_124_">
+      <input name="A1" wire="_005_" />
+      <input name="A2" wire="_006_" />
+      <output name="ZN" wire="S[11]" />
+   </node>
+   <node name="AND2_X1" var="_125_">
+      <input name="A1" wire="Y[12]" />
+      <input name="A2" wire="X[12]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_007_" />
+   </node>
+   <node name="NAND2_X1" var="_126_">
+      <input name="A1" wire="Y[12]" />
+      <input name="A2" wire="X[12]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_008_" />
+   </node>
+   <node name="OR2_X1" var="_127_">
+      <input name="A1" wire="Y[12]" />
+      <input name="A2" wire="X[12]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_009_" />
+   </node>
+   <node name="NAND2_X1" var="_128_">
+      <input name="A1" wire="_008_" />
+      <input name="A2" wire="_009_" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_010_" />
+   </node>
+   <node name="OAI21_X1" var="_129_">
+      <input name="A1" wire="_004_" />
+      <input name="A2" wire="_006_" />
+      <input name="B" wire="_003_" />
+      <output name="ZN" t0="100" t1="0" tc="0" wire="_011_" />
+   </node>
+   <node name="XNOR2_X1" var="_130_">
+      <input name="A1" wire="_010_" />
+      <input name="A2" wire="_011_" />
+      <output name="ZN" wire="S[12]" />
+   </node>
+   <node name="NAND2_X1" var="_131_">
+      <input name="A1" wire="Y[13]" />
+      <input name="A2" wire="X[13]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_012_" />
+   </node>
+   <node name="NOR2_X1" var="_132_">
+      <input name="A1" wire="Y[13]" />
+      <input name="A2" wire="X[13]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_013_" />
+   </node>
+   <node name="XOR2_X1" var="_133_">
+      <input name="A1" wire="Y[13]" />
+      <input name="A2" wire="X[13]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_014_" />
+   </node>
+   <node name="AOI21_X1" var="_134_">
+      <input name="A1" wire="_009_" />
+      <input name="A2" wire="_011_" />
+      <input name="B" wire="_007_" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_015_" />
+   </node>
+   <node name="XNOR2_X1" var="_135_">
+      <input name="A1" wire="_014_" />
+      <input name="A2" wire="_015_" />
+      <output name="ZN" wire="S[13]" />
+   </node>
+   <node name="AND2_X1" var="_136_">
+      <input name="A1" wire="Y[14]" />
+      <input name="A2" wire="X[14]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_016_" />
+   </node>
+   <node name="NAND2_X1" var="_137_">
+      <input name="A1" wire="Y[14]" />
+      <input name="A2" wire="X[14]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_017_" />
+   </node>
+   <node name="OR2_X1" var="_138_">
+      <input name="A1" wire="Y[14]" />
+      <input name="A2" wire="X[14]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_018_" />
+   </node>
+   <node name="NAND2_X1" var="_139_">
+      <input name="A1" wire="_017_" />
+      <input name="A2" wire="_018_" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_019_" />
+   </node>
+   <node name="OAI21_X1" var="_140_">
+      <input name="A1" wire="_013_" />
+      <input name="A2" wire="_015_" />
+      <input name="B" wire="_012_" />
+      <output name="ZN" t0="100" t1="0" tc="0" wire="_020_" />
+   </node>
+   <node name="XNOR2_X1" var="_141_">
+      <input name="A1" wire="_019_" />
+      <input name="A2" wire="_020_" />
+      <output name="ZN" wire="S[14]" />
+   </node>
+   <node name="NAND2_X1" var="_142_">
+      <input name="A1" wire="Y[15]" />
+      <input name="A2" wire="X[15]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_021_" />
+   </node>
+   <node name="NOR2_X1" var="_143_">
+      <input name="A1" wire="Y[15]" />
+      <input name="A2" wire="X[15]" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_022_" />
+   </node>
+   <node name="XOR2_X1" var="_144_">
+      <input name="A1" wire="Y[15]" />
+      <input name="A2" wire="X[15]" />
+      <output name="Z" t0="100" t1="0" tc="0" wire="_023_" />
+   </node>
+   <node name="AOI21_X1" var="_145_">
+      <input name="A1" wire="_018_" />
+      <input name="A2" wire="_020_" />
+      <input name="B" wire="_016_" />
+      <output name="ZN" t0="0" t1="100" tc="0" wire="_024_" />
+   </node>
+   <node name="XNOR2_X1" var="_146_">
+      <input name="A1" wire="_023_" />
+      <input name="A2" wire="_024_" />
+      <output name="ZN" wire="S[15]" />
+   </node>
+   <node name="XOR2_X1" var="_147_">
+      <input name="A1" wire="Y[0]" />
+      <input name="A2" wire="X[0]" />
+      <output name="Z" wire="S[0]" />
+   </node>
+   <node name="OAI21_X1" var="_148_">
+      <input name="A1" wire="_022_" />
+      <input name="A2" wire="_024_" />
+      <input name="B" wire="_021_" />
+      <output name="ZN" wire="S[16]" />
+   </node>
+   <circuitinputs>
+      <input var="X[0]" />
+      <input var="X[1]" />
+      <input var="X[2]" />
+      <input var="X[3]" />
+      <input var="X[4]" />
+      <input var="X[5]" />
+      <input var="X[6]" />
+      <input var="X[7]" />
+      <input var="X[8]" />
+      <input var="X[9]" />
+      <input var="X[10]" />
+      <input var="X[11]" />
+      <input var="X[12]" />
+      <input var="X[13]" />
+      <input var="X[14]" />
+      <input var="X[15]" />
+      <input var="Y[0]" />
+      <input var="Y[1]" />
+      <input var="Y[2]" />
+      <input var="Y[3]" />
+      <input var="Y[4]" />
+      <input var="Y[5]" />
+      <input var="Y[6]" />
+      <input var="Y[7]" />
+      <input var="Y[8]" />
+      <input var="Y[9]" />
+      <input var="Y[10]" />
+      <input var="Y[11]" />
+      <input var="Y[12]" />
+      <input var="Y[13]" />
+      <input var="Y[14]" />
+      <input var="Y[15]" />
+   </circuitinputs>
+   <circuitoutputs>
+      <output var="S[0]" />
+      <output var="S[1]" />
+      <output var="S[2]" />
+      <output var="S[3]" />
+      <output var="S[4]" />
+      <output var="S[5]" />
+      <output var="S[6]" />
+      <output var="S[7]" />
+      <output var="S[8]" />
+      <output var="S[9]" />
+      <output var="S[10]" />
+      <output var="S[11]" />
+      <output var="S[12]" />
+      <output var="S[13]" />
+      <output var="S[14]" />
+      <output var="S[15]" />
+      <output var="S[16]" />
+   </circuitoutputs>
+</root>
