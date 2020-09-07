@@ -1,10 +1,12 @@
-# Poison-Oak
+# AxLS
 
-Description
+#### **An Open-Source Framework for Netlist Transformation Approximate Logic Synthesis**
 
-# How to use the library?
+
 
 ## Requirements
+
+To use AxLS, Python, Yosys, and Icarus Verilog are required, at least in the following versions:
 
 | name           | version | -    |
 | -------------- | ------- | ---- |
@@ -14,38 +16,49 @@ Description
 
 
 
+### Installing Yosys
+
 ```bash
-# How to install icarus verilog
-
-wget ftp://ftp.icarus.com/pub/eda/verilog/v10/verilog-10.3.tar.gz
-tar -zxvf verilog-10.3.tar.gz
-cd verilog-10.3/
-./configure
-make
-sudo make install 
-
-# How to install yosys
+sudo apt-get install build-essential clang bison flex \
+	libreadline-dev gawk tcl-dev libffi-dev git \
+	graphviz xdot pkg-config python3 libboost-system-dev \
+	libboost-python-dev libboost-filesystem-dev zlib1g-dev
 
 git clone https://github.com/cliffordwolf/yosys.git
 cd yosys/
 make config-clang
 make config-gcc
 make
-make test
+make test #optional
 sudo make install
 ```
 
 
 
-## Parse the circuit
+### Installing Icarus Verilog
 
-1. First we import the `Circuit` class:
+```bash
+wget ftp://ftp.icarus.com/pub/eda/verilog/v10/verilog-10.3.tar.gz
+tar -zxvf verilog-10.3.tar.gz
+cd verilog-10.3/
+./configure
+make
+sudo make install 
+```
+
+
+
+## Using AxLS
+
+### Parsing a netlist
+
+1. First, import the `Circuit` class:
 
 ```python
 from circuit import Circuit
 ```
 
-2. Lets declare some constants with the path of the files we are going to use:
+2. Some constants are required to define files and their corresponding path:
 
 ```python
 # verilog file of the circuit we want to approximate
@@ -58,14 +71,14 @@ TB='circuits/brent.kung.16b/UBBKA_15_0_15_0_tb.v'
 SAIF='circuits/brent.kung.16b/UBBKA_15_0_15_0.saif'
 ```
 
-3. When we create a `Circuit` object the library parse every file and builds an xml tree with all the relevant information related with the circuit
+3. When creating a `Circuit` object, the library parse every file and builds an XML tree with all the relevant information related with the circuit
 
 ```python
 # Circuit creates a representation of the circuit using python objects
 our_circuit = Circuit(RTL, "NanGate15nm", SAIF)
 ```
 
-4. You can print the circuit xml by calling the `get_circuit_xml()` function:
+4. You can print the circuit from the XML file, by calling the `get_circuit_xml()` function:
 
 ```python
 print(our_circuit.get_circuit_xml())
@@ -83,7 +96,7 @@ You should see something like this:
 our_circuit.show()
 ```
 
-6. From `our_circuit` you can also obtain the circuit inputs/outputs
+6. From `our_circuit`, you can also obtain the circuit inputs/outputs
 
 ```python
 print("Circuit inputs...")
@@ -101,7 +114,7 @@ Circuit outputs...
 ['S[0]', 'S[1]', 'S[2]', 'S[3]', 'S[4]', 'S[5]', 'S[6]', 'S[7]', 'S[8]', 'S[9]', 'S[10]', 'S[11]', 'S[12]', 'S[13]', 'S[14]', 'S[15]', 'S[16]']
 ```
 
-7. Remember, the circuit is represented as an xml (ElementTree) so if you want to iterate over the xml just get the root of the tree:
+7. Remember, the circuit is represented as an XML (ElementTree) so if you want to iterate over the XML just get the root of the tree:
 
 ```python
 print(our_circuit.netl_root)
@@ -111,13 +124,15 @@ print(our_circuit.netl_root)
 [<Element 'node' at 0xb587de14>, <Element 'node' at 0xb581057c>]
 ```
 
-Using this node you can implement your own pruning algorithms. Because ElementTree allows you to search xml nodes based on their attributes using xpath syntax. 
+Using this node you can implement your own pruning algorithms. Because ElementTree allows you to search XML nodes based on their attributes using xpath syntax. 
 
 > Don't Reinvent the Wheel!
 
+
+
 ## Deleting a node
 
-1. The first method we provide to delete nodes is quite simple, just delete a node based on its name. You can do it in two different ways:
+1. The first example method we provide to delete nodes is quite simple, just delete a node based on its name. You can do it in two different ways:
 
 ```python
 # Using ElementTree xpath syntax
@@ -136,17 +151,17 @@ When you set the attribute `delete` of a node to `yes`, it means that this node 
 
 ## Pruning Algorithms
 
-This library provides two approaches in order to suggest which nodes you should delete:
+This framework currently provides two approaches, as examples, in order to suggest which nodes you should delete:
 
-* AXLS: suggest which nodes to delete if the inputs or the outputs are constants. For more information check: **ASLX.paper**
-* Pseudo-Probabilistic Pruning: suggest nodes to delete based on the percentage of time a specific node keep a constant value (1 or 0) in their output. For more information go to: **ProbPrun.paper**
+* InOuts: suggest which nodes to delete if the inputs or the outputs are constants. 
+* Pseudo-Probabilistic Pruning: suggest nodes to delete based on the toggling time a specific node keep a constant value (1 or 0) in their output. Similar as presented in J. Schlachter, V. Camus, K. V. Palem and C. Enz, "Design and Applications of Approximate Circuits by Gate-Level Pruning," in IEEE Transactions on Very Large Scale Integration (VLSI) Systems, vol. 25, no. 5, pp. 1694-1702, May 2017, doi: 10.1109/TVLSI.2017.2657799.
 
-### AXLS
+### InOuts
 
-1. Lets start with **AXLS** methods. Import both `GetInputs` and `GetOutputs` 
+1. Lets start with InOuts methods. Import both `GetInputs` and `GetOutputs` 
 
 ```python
-from pruning_algorithms.axls import GetInputs, GetOutputs
+from pruning_algorithms.inouts import GetInputs, GetOutputs
 ```
 
 2. `GetInputs` will give you a list of nodes that can be deleted if the inputs specified are constants:
@@ -218,6 +233,8 @@ Shows:
 Nodes to delete if output 5 is constant
 ['_091_']
 ```
+
+
 
 ### ProbPun
 
@@ -324,18 +341,18 @@ This should returns:
 
 Files and Folders description:
 
-| name                | description                                                  | used   |
+| Name                | Description                                                  | Used   |
 | ------------------- | ------------------------------------------------------------ | ------ |
 | circuits            | Contains the rtl and testbench of some sample circuits.      |        |
 | prunning_algorithms | Folder containing pruning techniques implementations.        |        |
-| `axls.py`           | Contains the implementation of `GetInputs` and `GetOutputs` pruning methods. |        |
+| `inouts.py`         | Contains the implementation of `GetInputs` and `GetOutputs` example pruning methods. |        |
 | `probprun.py`       | Contains the implementation of a pseudo Probabilistic Pruning method. `GetOneNode` is a python generator. It will retrieve one node to delete each time it is called. |        |
 | templates           | Folder containing some libraries and scripts used for synthesis. |        |
 | `NanGate15nm.lib`   |                                                              |        |
 | `NanGate15nm.v`     |                                                              |        |
 | `synth.ys`          | Script for synthesize a circuit using yosys.                 |        |
 | `__main__.py`       | It executes the tool using the arguments from the command line. **Still in progress**. | **No** |
-| `barcas.py`         | Is the Pruning Implementation using the AXLS techniques.     |        |
+| `barcas.py`         | Is the Pruning Implementation using the InOuts techniques.   |        |
 | `circuit.py`        | Object that represents a circuit as a XML tree. Receives a rtl and a library in order to build the circuit and be able to simulate it. |        |
 | `circuiterror.py`   | Compares two outputs and computes different error metrics.   |        |
 | `demo.py`           | This file is a complete example of how the library should be used. |        |

@@ -1,6 +1,6 @@
 
 from circuit import Circuit
-from pruning_algorithms.axls import GetInputs, GetOutputs
+from pruning_algorithms.inouts import GetInputs, GetOutputs
 from pruning_algorithms.probprun import GetOneNode
 
 # name of the circuit we want to parse
