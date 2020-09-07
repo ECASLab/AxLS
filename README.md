@@ -320,4 +320,30 @@ This should returns:
 
 
 
- 
+ # Files and Folders
+
+Files and Folders description:
+
+| name                | description                                                  | used   |
+| ------------------- | ------------------------------------------------------------ | ------ |
+| circuits            | Contains the rtl and testbench of some sample circuits.      |        |
+| prunning_algorithms | Folder containing pruning techniques implementations.        |        |
+| `axls.py`           | Contains the implementation of `GetInputs` and `GetOutputs` pruning methods. |        |
+| `probprun.py`       | Contains the implementation of a pseudo Probabilistic Pruning method. `GetOneNode` is a python generator. It will retrieve one node to delete each time it is called. |        |
+| templates           | Folder containing some libraries and scripts used for synthesis. |        |
+| `NanGate15nm.lib`   |                                                              |        |
+| `NanGate15nm.v`     |                                                              |        |
+| `synth.ys`          | Script for synthesize a circuit using yosys.                 |        |
+| `__main__.py`       | It executes the tool using the arguments from the command line. **Still in progress**. | **No** |
+| `barcas.py`         | Is the Pruning Implementation using the AXLS techniques.     |        |
+| `circuit.py`        | Object that represents a circuit as a XML tree. Receives a rtl and a library in order to build the circuit and be able to simulate it. |        |
+| `circuiterror.py`   | Compares two outputs and computes different error metrics.   |        |
+| `demo.py`           | This file is a complete example of how the library should be used. |        |
+| `netlist.py`        | This class parses, extracts and represents the circuit from rtl into an object understandable by python. |        |
+| `poisonoak.config`  | This is going to be used along with `__main__.py` in order to execute poisonoak as an app, and not as a library. | **No** |
+| `poisonoak.help`    | Contains the menu and tool description of the poison oak app. | **No** |
+| `synthesis.py`      | Executes the synthesis script (in our case yosys) and clean the intermediate files generated. At the end returns the path of the netlist. |        |
+| `technology.py`     | This class parses, extracts and represents the technology library file into an object understandable by python. |        |
+| `test.py`           | This class implements some unit tests for the poison oak library. **Not implemented yet**. | **No** |
+| `utils.py`          | Some functions not related with any other class but useful.  |        |
+
