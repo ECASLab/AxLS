@@ -17,7 +17,7 @@ our_circuit = Circuit(RTL, "NanGate15nm", SAIF)
 print(our_circuit.get_circuit_xml())
 
 # if you want to see the circuit as a graph
-##### our_circuit.show()
+#### our_circuit.show()
 
 # if you need the circuit inputs / outputs
 print("Circuit inputs...")
@@ -27,7 +27,6 @@ print(our_circuit.outputs)
 
 # the root of the xml tree is at:
 print(our_circuit.netl_root)
-
 
 # lets delete a node for example the _101_
 node101 = our_circuit.netl_root.find("./node[@var='_101_']")
@@ -97,6 +96,7 @@ for x in range (30):
 ORIGINAL='circuits/brent.kung.16b/output0.txt'
 APPROX='circuits/brent.kung.16b/output.txt'
 
+print ("Simulating...")
 error = our_circuit.simulate(TB, "med", ORIGINAL, APPROX)
+print ("Simulation finished...")
 print(error)
-

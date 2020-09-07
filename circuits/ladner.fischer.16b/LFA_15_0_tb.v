@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module UBBKA_15_0_15_0_tb();
+module LFA_15_0_tb();
 
   wire [16:0] s;
   reg [15:0] a;
@@ -11,19 +11,13 @@ module UBBKA_15_0_15_0_tb();
 
   integer i,file;
 
-  UBBKA_15_0_15_0 U0(s,a,b);
-
-
+  LFA_15_0 U0(s,a,b);
 
   initial begin
 
     //$display("-- Begining Simulation --");
-
-    /*
-    $dumpfile("./test.vcd");
-    $dumpvars(0,UBBKA_15_0_15_0_tb);
-    */
-
+    //$dumpfile("./test.vcd");
+    //$dumpvars(0,LFA_15_0_tb);
     $readmemb("memA.dat", memA);
     $readmemb("memB.dat", memB);
     file = $fopen("output.txt","w");

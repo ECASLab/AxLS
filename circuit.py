@@ -1,7 +1,7 @@
 
 import datetime
 from graphviz import Digraph
-from os import path, remove, system
+from os import path, remove, system, rename
 from random import randint
 from re import sub, findall
 import xml.etree.ElementTree as ET
@@ -107,6 +107,21 @@ class Circuit:
         node_to_delete = self.netl_root.find(f"./node[@var='{node_var}']")
         if (node_to_delete != None):
             node_to_delete.set("delete", "yes")
+        else:
+            print(f"Node {node_var} not found")
+
+    def undodelete(self, node_var):
+        '''
+        Removes the delete label from a node
+
+        Parameters
+        ----------
+        node_var : string
+            name of the node to be preserved
+        '''
+        node_to_delete = self.netl_root.find(f"./node[@var='{node_var}']")
+        if (node_to_delete != None):
+            node_to_delete.attrib.pop("delete")
         else:
             print(f"Node {node_var} not found")
 
@@ -409,6 +424,50 @@ class Circuit:
                     	cells.set('t1',saif_cell_t1)
                     	cells.set('tc',saif_cell_tc)
 
+    def exact_output (self, testbench):
+        '''
+        Simulates the actual circuit tree (with deletions)
+        Creates an executable using icarus, end then execute it to obtain the
+        output of the testbench
+
+        Parameters
+        ----------
+        testbench : string
+            path to the testbench file
+        metric : string
+            equation to compute the error
+            options med, wce, wcre,mred, msed
+        orig_output : string
+            path to the oringinal results of the circuit
+        new_output : string
+            path to the new results file created after the simulation
+        clean : bool
+            if true, deletes all the generated files
+
+        Returns
+        -------
+        float
+            error of the current circuit tree
+        '''
+
+        name = get_name(5)
+        rtl = self.write_to_disk(name)
+
+        top = self.topmodule
+        tech = "./templates/" + self.tech_file
+        out = self.output_folder
+
+        # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
+        # iverilog -l tech.v -o executable testbench.v netlist.v
+        kon = f"iverilog -l {tech}.v -o {out}/{top} {testbench} {rtl}"
+        result = system(kon)
+
+        # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
+        result = system(f"cd {out}; ./{top}")
+
+        remove(rtl)
+        remove(f"{out}/{top}")
+        rename(out + "/output.txt", out + "/output0.txt")
 
     def simulate (self, testbench, metric, orig_output, new_output, clean=True):
         '''
@@ -446,7 +505,7 @@ class Circuit:
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
         kon = f"iverilog -l {tech}.v -o {out}/{top} {testbench} {rtl}"
-        print(kon)
+        #print(kon)
         result = system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
