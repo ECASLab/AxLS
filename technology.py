@@ -1,6 +1,6 @@
 
 import re
-from re import split, match, findall
+from re import split, match, findall, sub
 import xml.etree.cElementTree as ET
 import xml.dom.minidom
 
@@ -47,16 +47,16 @@ class Technology:
             modules = [f"module{l}module" for l in content.split('module')]
 
             for module in modules:
-                if (not 'input' in module or not 'output' in module):
+                if (not 'input' in module or not 'output' or not 'endmodule' in module):
                     continue
                 elif ('primitive' in module):
                     continue
                 else:
                     # extract the module information
-                    header = match(r'module (.+) \((.+)\);', module)
+                    header = match(r'module (.+) \((?s:.+)\);', module)
                     module_name = header.group(1)
-                    module_inputs = findall(r'input[\s\t]+(.+);', module)
-                    module_outputs = findall(r'output[\s\t]+(.+);', module)
+                    module_inputs = findall(r'input[\s\t]+(\w+)', module)
+                    module_outputs = findall(r'output[\s\t]+(\w+)', module)
                     # there was a fix to remove commas here
 
                     self.cells.append(
