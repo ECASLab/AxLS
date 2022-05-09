@@ -295,11 +295,15 @@ class Circuit:
             for wire in self.get_circuit_wires():
                 if not wire in to_be_deleted:
                     writeln(netlist_file, f"\twire {wire};")
-
+            used_outputs=[]
             for output in self.raw_outputs:
-                writeln(netlist_file, "\t" + output)
+                if not (output in used_outputs):
+                    writeln(netlist_file, "\t" + output)
+                    used_outputs.append(output)
             for output in self.raw_inputs:
-                writeln(netlist_file, "\t" + output)
+                if not (output in used_outputs):
+                    writeln(netlist_file, "\t" + output)
+                    used_outputs.append(output)
 
             for node_var in self.get_circuit_nodes():
                 if not node_var in nodes_to_delete:
@@ -464,7 +468,7 @@ class Circuit:
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
         result = system(f"cd {out}; ./{top}")
-
+        #open(out+"/output.txt",'w')
         remove(rtl)
         remove(f"{out}/{top}")
         rename(out + "/output.txt", out + "/output0.txt")
