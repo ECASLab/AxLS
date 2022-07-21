@@ -24,8 +24,8 @@ def synthesis (rtl, tech, topmodule, tool="yosys"):
     '''
 
     # - - - - - - - - - - - - - Copy the synth.ys file - - - - - - - - - - - -
-
-    file = open("templates/synth.ys","r")
+    current_dir=os.path.dirname(__file__)
+    file = open(f"{current_dir}/templates/synth.ys","r")
     file_text = file.read()
     file.close()
 
@@ -34,8 +34,8 @@ def synthesis (rtl, tech, topmodule, tool="yosys"):
     file_text = file_text.replace("[[RTLFILENAME]]", rtl)
     file_text = file_text.replace("[[TOPMODULE]]", topmodule)
     file_text = file_text.replace("[[NETLIST]]", netlist_path)
-    file_text = file_text.replace("[[LIBRARY]]", f"templates/{tech}.lib")
-    file_text = file_text.replace("[[LIBRARYABC]]", f"templates/{tech}.lib")
+    file_text = file_text.replace("[[LIBRARY]]", f"{current_dir}/templates/{tech}.lib")
+    file_text = file_text.replace("[[LIBRARYABC]]", f"{current_dir}/templates/{tech}.lib")
 
     file = open('synth.ys',"w")
     file.write(file_text)

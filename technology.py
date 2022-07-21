@@ -1,9 +1,10 @@
-
+import os.path
 import re
 from re import split, match, findall, sub
 import xml.etree.cElementTree as ET
 import xml.dom.minidom
 
+current_dir=os.path.dirname(__file__)
 
 class TechLibCell:
     '''
@@ -37,10 +38,11 @@ class Technology:
         object that references the root element of the Technology Library tree
     '''
 
+
     def __init__(self, tech):
         self.cells = []
 
-        with open(f"templates/{tech}.v", 'r') as technology_file:
+        with open(f"{current_dir}/templates/{tech}.v", 'r') as technology_file:
             content = technology_file.read()
 
             # split the technology file in modules

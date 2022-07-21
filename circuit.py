@@ -1,16 +1,20 @@
 
 import datetime
+import os
+
 from graphviz import Digraph
 from os import path, remove, system, rename
 from random import randint
 from re import sub, findall
 import xml.etree.ElementTree as ET
 
-from circuiterror import compute_error
-from netlist import Netlist
-from synthesis import synthesis
-from technology import Technology
-from utils import get_name
+from .circuiterror import compute_error
+from .netlist import Netlist
+from .synthesis import synthesis
+from .technology import Technology
+from .utils import get_name
+
+current_dir=os.path.dirname(__file__)
 
 
 
@@ -46,6 +50,8 @@ class Circuit:
         saif : string
             path to the saif file
         '''
+
+
         self.rtl_file = rtl
         self.tech_file = tech
         self.topmodule = rtl.split('/')[-1].replace(".v","")
@@ -64,6 +70,8 @@ class Circuit:
             self.saif_parser(saif)
 
         self.output_folder = path.dirname(path.abspath(rtl))
+
+       	    
 
 
     def get_circuit_xml(self):
@@ -454,12 +462,17 @@ class Circuit:
             error of the current circuit tree
         '''
 
+
         name = get_name(5)
         rtl = self.write_to_disk(name)
 
         top = self.topmodule
-        tech = "./templates/" + self.tech_file
+        tech = f"{current_dir}/templates/" + self.tech_file
         out = self.output_folder
+
+        """Better to temporarily change cwd when executing iverilog"""
+        cwd=os.getcwd()
+        os.chdir(current_dir)
 
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
@@ -468,12 +481,17 @@ class Circuit:
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
         result = system(f"cd {out}; ./{top}")
-        #open(out+"/output.txt",'w')
+
+        os.chdir(cwd)
+
         remove(rtl)
         remove(f"{out}/{top}")
         rename(out + "/output.txt", out + "/output0.txt")
 
-    def simulate (self, testbench, metric, orig_output, new_output, clean=True):
+
+        return f'{out}/output0.txt'
+
+    def simulate (self, testbench, metric, orig_output, new_output):
         '''
         Simulates the actual circuit tree (with deletions)
         Creates an executable using icarus, end then execute it to obtain the
@@ -499,12 +517,17 @@ class Circuit:
             error of the current circuit tree
         '''
 
+
         name = get_name(5)
         rtl = self.write_to_disk(name)
 
         top = self.topmodule
         tech = "./templates/" + self.tech_file
         out = self.output_folder
+
+        """Better to temporarily change cwd when executing iverilog"""
+        cwd=os.getcwd()
+        os.chdir(current_dir)
 
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
@@ -514,11 +537,11 @@ class Circuit:
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
         result = system(f"cd {out}; ./{top}")
+        os.chdir(cwd)
 
         error = compute_error(metric, orig_output, new_output)
 
-        if clean:
-            remove(rtl)
+        remove(rtl)
         remove(f"{out}/{top}")
 
         return error
