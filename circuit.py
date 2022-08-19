@@ -1,6 +1,7 @@
 
 import datetime
 import os
+import sys
 
 from graphviz import Digraph
 from os import path, remove, system, rename
@@ -8,13 +9,16 @@ from random import randint
 from re import sub, findall
 import xml.etree.ElementTree as ET
 
-from .circuiterror import compute_error
-from .netlist import Netlist
-from .synthesis import synthesis
-from .technology import Technology
-from .utils import get_name
-
 current_dir=os.path.dirname(__file__)
+sys.path.append(current_dir)
+
+from circuiterror import compute_error
+from netlist import Netlist
+from synthesis import synthesis
+from technology import Technology
+from utils import get_name
+
+
 
 
 
@@ -56,9 +60,9 @@ class Circuit:
         self.tech_file = tech
         self.topmodule = rtl.split('/')[-1].replace(".v","")
         self.netl_file = synthesis (rtl, tech, self.topmodule, 'yosys')
-        technology = Technology(tech)
+        self.technology = Technology(tech)
         # extract the usefull attributes of netlist
-        netlist = Netlist(self.netl_file, technology)
+        netlist = Netlist(self.netl_file, self.technology)
         self.netl_root = netlist.root
         self.inputs = netlist.circuit_inputs
         self.outputs = netlist.circuit_outputs
