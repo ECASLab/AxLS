@@ -1,5 +1,6 @@
-
+import math
 import os
+import numpy as np
 import collections
 
 
@@ -48,12 +49,15 @@ def compute_error(metric, original, approximate):
 
     # Read modified output content
     approximate_output = extract_numbers(approximate)
+    if not approximate_output:
+    	return np.inf
+    
 
     # compute the error distance ED := |a - a'|
     error_distance = [abs(original_output[x] - approximate_output[x])
         for x in range(0,len(original_output))]
 
-    square_error_distance = [ error_distance[x]**2 for x in error_distance]
+    square_error_distance = [ error_distance[x]**2 for x in range(0,len(error_distance))]
 
     # compute the relative error distance RED := ED / a
     relative_error_distance = [
@@ -71,6 +75,16 @@ def compute_error(metric, original, approximate):
     for x in range (0,len(counter.keys())):
         per = round(values[x]/total,6)
         pon_avg += (int(keys[x]) * per)
+
+    # Error Rate:
+    if (metric == "er"):
+        return round(sum((error>0 for error in error_distance))/total,3)
+
+    # Mean Hamming Distance see: https://stackoverflow.com/questions/40875282/fastest-way-to-get-hamming-distance-for-integer-array
+    if (metric == "hd"):
+        hamming_distance=np.bitwise_xor(original_output,approximate_output)
+        hamming_distance=[f'{hd:b}'.count('1') for hd in hamming_distance]
+        return round(np.mean(hamming_distance),3)
 
     # Normalized Error Distance MED := sum { ED(bj,b) * pj }
     if (metric == "med"):
