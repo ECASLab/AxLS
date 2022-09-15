@@ -56,9 +56,21 @@ class Netlist:
         self.raw_outputs, self.circuit_outputs = self.get_outputs(content)
         self.raw_inputs, self.circuit_inputs = self.get_inputs(content)
 
-        expreg = r'module [a-zA-Z0-9_]*\s*\((.*)\);'
+        expreg = r'module [a-zA-Z0-9_]*\s*\(([\s\S]+?)\);'
         parameters = re.search(expreg,content)
-        self.raw_parameters = parameters.group(1)
+        self.raw_parameters = re.sub('\n','',parameters.group(1))
+
+        '''Support for assignments''' #Unusual case when ports are mapped to wires by Yosys
+        expreg=r'assign (\S+)\s+=\s+(\S+);'
+        assigns=re.findall(expreg,content)
+        for a in assigns:
+            if a[0] in self.circuit_outputs:
+                content=content.replace(a[1],a[0])
+            elif a[1] in self.circuit_inputs:
+                content=content.replace(a[0],a[1])
+            else:
+                content=content.replace(a[0],a[1])
+
 
         # iterate over every instanced module
         expreg = r'([a-zA-Z0-9_]+) (.+) \(([\n\s\t.a-zA-Z0-9\(\[\]\),_]*)\);'
@@ -102,6 +114,7 @@ class Netlist:
                 if (not found):
                     print ("[ERROR] no input or output for param: " + \
                         param_name + " at cell " + var + ' ' + cell_name)
+
 
             self.nodes.append(node)
 

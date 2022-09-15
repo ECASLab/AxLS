@@ -1,6 +1,7 @@
 
 import datetime
 import os
+import re
 import sys
 
 from graphviz import Digraph
@@ -14,9 +15,11 @@ sys.path.append(current_dir)
 
 from circuiterror import compute_error
 from netlist import Netlist
-from synthesis import synthesis
+from synthesis import synthesis, resynthesis
 from technology import Technology
-from utils import get_name
+from utils import get_name, get_random
+import re
+import numpy as np
 
 
 
@@ -59,23 +62,25 @@ class Circuit:
         self.rtl_file = rtl
         self.tech_file = tech
         self.topmodule = rtl.split('/')[-1].replace(".v","")
-        self.netl_file = synthesis (rtl, tech, self.topmodule, 'yosys')
+        self.netl_file = synthesis (rtl, tech, self.topmodule)
         self.technology = Technology(tech)
         # extract the usefull attributes of netlist
         netlist = Netlist(self.netl_file, self.technology)
         self.netl_root = netlist.root
-        self.inputs = netlist.circuit_inputs
+        self.inputs = [k for k in netlist.circuit_inputs if not k in {'iso1p'}]
         self.outputs = netlist.circuit_outputs
-        self.raw_inputs = netlist.raw_inputs
+
+        self.raw_inputs = [k for k in netlist.raw_inputs if not k in {'input iso1p;'}]
         self.raw_outputs = netlist.raw_outputs
         self.raw_parameters = netlist.raw_parameters
 
+
         if (saif != ""):
-            self.saif_parser(saif)
+            self.saif=self.saif_parser(saif)
 
         self.output_folder = path.dirname(path.abspath(rtl))
 
-       	    
+
 
 
     def get_circuit_xml(self):
@@ -335,7 +340,7 @@ class Circuit:
         return filepath
 
 
-    def show (self, show_deletes=False):
+    def show (self, show_deletes=False, view=True):
         '''
         Displays the circuit as a graph
 
@@ -399,7 +404,9 @@ class Circuit:
 
         #f.view()
         name = f"{self.output_folder}{path.sep}{self.topmodule}"
-        f.render(filename=name, view=True)
+        f.render(filename=name, view=view)
+        return(f.render(filename=name, view=view))
+
 
 
     def saif_parser (self, saif):
@@ -432,14 +439,32 @@ class Circuit:
 
                 if (saif_cell_name[0] == "w"):
                     my_saif_cell_name = "_" + saif_cell_name[1:] + "_"
-                    cells = self.netl_root.find( \
-                        f"./node/output[@wire='{my_saif_cell_name}']")
+                    cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
 
                     if (cells != None):
                     	cells.set('t0',saif_cell_t0)
                     	cells.set('t1',saif_cell_t1)
                     	cells.set('tc',saif_cell_tc)
 
+                elif ((saif_cell_name[0],saif_cell_name[-1]) == ("_","_")): #Yosys 19.
+                    my_saif_cell_name = "_" + saif_cell_name[1:-1] + "_"
+                    cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
+
+                    if (cells != None):
+                    	cells.set('t0',saif_cell_t0)
+                    	cells.set('t1',saif_cell_t1)
+                    	cells.set('tc',saif_cell_tc)
+
+                elif (saif_cell_name.replace('\\','') in self.outputs):
+                    my_saif_cell_name = saif_cell_name.replace('\\','')
+                    cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
+
+                    if (cells != None):
+                    	cells.set('t0',saif_cell_t0)
+                    	cells.set('t1',saif_cell_t1)
+                    	cells.set('tc',saif_cell_tc)
+
+        return saif
     def exact_output (self, testbench):
         '''
         Simulates the actual circuit tree (with deletions)
@@ -454,7 +479,7 @@ class Circuit:
             equation to compute the error
             options med, wce, wcre,mred, msed
         orig_output : string
-            path to the oringinal results of the circuit
+            path to the original results of the circuit
         new_output : string
             path to the new results file created after the simulation
         clean : bool
@@ -549,3 +574,226 @@ class Circuit:
         remove(f"{out}/{top}")
 
         return error
+
+    def generate_dataset(self, samples, distribution='uniform', **kwargs):
+        '''
+
+        Generates a dataset of randomly distributed data for each input of the circuit.
+        By Default, data is written in columns of n-bit hexadecimal numbers, being each column an input and n its bitwidth.
+
+        Parameters
+        ----------
+        samples: int
+            How many rows of data to generate.
+        distribution: string
+            The name of the desired random distribution. Could be:
+                "gaussian" or "normal" for a normal distribution.
+                "uniform" or "rectangular" for a uniform distribution.
+                "triangular" for a triangular distribution.
+                TODO: Add more distributions
+
+        **kwargs: (optional)
+
+        median: int
+            The center of the distribution (works only for certain distributions)
+        std: int
+            Standard deviation of the destribution (only gaussian/normal distribution)
+        limits: int tuple
+            Lower and upper limit of the dataset. By default it takes the whole range of numbers: [0,2^n-1]
+        format: string
+            A format identifier to convert data into a desired base. Could be:
+                x for lowercase Hexadecimal (default), use X for uppercase
+                d for decimal
+                b for binary
+                o for octal
+        Returns
+        -------
+            path to the generated dataset
+        '''
+
+
+        dataset=''
+        data=[]
+
+        format=kwargs['format'] if ('format' in kwargs) else 'x'
+
+
+        '''Get inputs information'''
+        inputs_info={}
+        for i in self.raw_inputs:
+            name=re.search(r' (\S+);', i)
+            bits=re.findall(r'[\:[](\d+)', i)
+
+            if bits:
+                bitwidth=1+int(bits[0])-int(bits[1])
+                inputs_info[name]=bitwidth
+            else:
+                inputs_info[name]=1
+
+        '''Iterate inputs'''
+
+        for bitwidth in inputs_info.values():
+            rows=get_random(bitwidth,distribution,samples, **kwargs)
+            format=f'0{bitwidth}b' if format=='b' else format #ensure right number of bits if binary
+            data.append([f'{i:{format}}' for i in rows])
+        data=list(zip(*data)) # Transpose data see: https://stackoverflow.com/questions/10169919/python-matrix-transpose-and-zip
+        file=np.savetxt(f'{self.output_folder}/dataset',data,fmt='%s')
+
+        return f'{self.output_folder}/dataset'
+
+    def write_tb(self, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False):
+        '''
+        Writes a basic testbench for the circuit. See template in ./templates/testbench
+        Parameters
+        ----------
+        iterations (optional): int
+            How many iterations to do (how many inputs pass to the circuit, and outputs write to file).
+            Requires dataset to be generated, by default it takes the number of rows.
+        timescale: string
+            A verilog timescale formatted as: timeunit / timeprecision
+        delay: int
+            Delay in time units. Applied at inputs initialization and after each iteration.
+        format: string
+            A verilog format string that indicates in which base the input dataset is represented.
+                'h' for hexadecimal
+                'o' for octal
+                'd' for decimal
+                'b' for binary
+
+        Returns
+        -------
+            path to generated file
+        '''
+
+        '''Check for existing dataset'''
+        if os.path.exists(f'{self.output_folder}/dataset') and iterations==None:
+            file=open(f'{self.output_folder}/dataset', 'r')
+            iterations=len(file.read().splitlines())
+            file.close()
+
+
+        '''Get inputs/outputs information'''
+        inputs_info={}
+        for i in self.raw_inputs:
+            name=re.search(r' (\S+);', i).group(1)
+            bits=re.findall(r'[\:[](\d+)', i)
+
+            if bits:
+                bitwidth=1+int(bits[0])-int(bits[1])
+                inputs_info[name]=bitwidth
+            else:
+                inputs_info[name]=1
+
+        outputs_info={}
+
+        for o in self.raw_outputs:
+            name=re.search(r' (\S+);', o).group(1)
+            bits=re.findall(r'[\:[](\d+)', o)
+
+            if bits:
+                bitwidth=1+int(bits[0])-int(bits[1])
+                outputs_info[name]=bitwidth
+            else:
+                outputs_info[name]=1
+
+        '''Write the header and module definition'''
+        text= f'/* Generated by AxLS */\n' \
+              f'`timescale {timescale} \n' \
+              f'\n' \
+              f'module {self.topmodule}_tb(); \n' \
+              f'\n'
+
+        '''Define inputs/outpus reg/wires and variables'''
+
+        for name, bitwidth in zip(outputs_info.keys(), outputs_info.values()):
+            if bitwidth==1:
+                text= f'{text}wire {name};\n'
+            else:
+                text= f'{text}wire [{bitwidth-1}:0] {name};\n'
+
+
+        for name, bitwidth in zip(inputs_info.keys(), inputs_info.values()):
+            if bitwidth==1:
+                text= f'{text}reg {name};\n'
+            else:
+                text= f'{text}reg [{bitwidth-1}:0] {name};\n'
+
+
+        text= f'{text}\n' \
+              f'integer i, file, mem, temp;\n' \
+              f'\n' \
+
+        '''Instantiate DUT'''
+        text= f'{text}{self.topmodule} U0('
+        for i in inputs_info.keys():
+            text= f'{text}{i},'
+        for o in list(outputs_info.keys())[0:-1]:
+            text= f'{text}{o},'
+        text= f'{text}{list(outputs_info.keys())[-1]});\n' \
+              f'\n' \
+
+        '''Initial statement'''
+        text= f'{text}initial begin\n $display("-- Beginning Simulation --");\n\n'
+        if dump_vcd:
+            text=f'{text} $dumpfile("./{self.topmodule}.vcd");\n' \
+                 f' $dumpvars(0,{self.topmodule}_tb);\n'
+        text=f'{text} file=$fopen("output.txt","w");\n' \
+             f' mem=$fopen("dataset", "r");\n'
+        for i in inputs_info.keys():
+            text=f'{text} {i} = 0;\n'
+        text=f'{text} #{delay}\n' \
+             f' for (i=0;i<{iterations};i=i+1) begin\n' \
+             f'  temp=$fscanf(mem,"'
+        for i in range(len(inputs_info)):
+            text=f'{text}%{format} '
+        text=f'{text}\\n"'
+        for i in inputs_info.keys():
+            text=f'{text},{i}'
+        text=f'{text});\n' \
+             f'  #{delay}\n' \
+             f'  $fwrite(file, "'
+        for o in range(len(outputs_info.keys())):
+            text=f'{text}%d\\n '
+        text=f'{text}",'
+        for o in list(outputs_info.keys())[::-1][0:-1]:
+            text= f'{text}{o},'
+        text= f'{text}{list(outputs_info.keys())[0]});\n'\
+            + f'  $display("-- Progress: %d/{iterations} --",i+1);\n'\
+              f' end\n' \
+              f' $fclose(file);\n' \
+              f' $fclose(mem);\n' \
+              f' $finish;\n' \
+              f'end\n' \
+              f'endmodule\n'
+
+        with open(os.path.join(f'{self.output_folder}/{self.topmodule}_tb.v'), 'w') as file:
+            file.write(text)
+            file.close()
+
+        return file.name
+
+    def resynth(self):
+        '''
+        Calls resynthesis function to reduce circuit structure using logic synthesis optimizations/mapping
+
+        :return: path-like string
+            path to resynthetized file
+        '''
+        name=get_name(5)
+        self.netl_file=resynthesis(self.write_to_disk(name),self.tech_file,self.topmodule)
+
+        netlist = Netlist(self.netl_file, self.technology)
+        self.netl_root = netlist.root
+        self.inputs = netlist.circuit_inputs
+        self.outputs = netlist.circuit_outputs
+        self.raw_inputs = netlist.raw_inputs
+        self.raw_outputs = netlist.raw_outputs
+        self.raw_parameters = netlist.raw_parameters
+
+        self.inputs.remove('iso1p')
+        [self.raw_inputs.remove(k) for k in self.raw_inputs if 'iso1p' in k]
+
+
+        os.remove(f'{self.output_folder}/{name}.v')
+
+        return self.netl_file
