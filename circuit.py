@@ -725,11 +725,10 @@ class Circuit:
 
         '''Instantiate DUT'''
         text= f'{text}{self.topmodule} U0('
-        for i in inputs_info.keys():
-            text= f'{text}{i},'
-        for o in list(outputs_info.keys())[0:-1]:
-            text= f'{text}{o},'
-        text= f'{text}{list(outputs_info.keys())[-1]});\n' \
+        params=self.raw_parameters.split(', ')
+        for p in params[0:-1]:
+            text= f'{text}{p},'
+        text= f'{text}{params[-1]});\n' \
               f'\n' \
 
         '''Initial statement'''
