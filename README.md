@@ -2,7 +2,10 @@
 
 #### **An Open-Source Framework for Netlist Transformation Approximate Logic Synthesis**
 
-
+#### Authors
+Jorge Castro-Godínez, professor, Tecnológico de Costa Rica
+Humberto Barrantes-García, student, Tecnológico de Costa Rica
+Roger Morales-Monge, student, Tecnológico de Costa Rica
 
 ## Requirements
 
