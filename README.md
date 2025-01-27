@@ -1,6 +1,6 @@
 # AxLS
 
-#### **An Open-Source Framework for Netlist Transformation Approximate Logic Synthesis**
+### **An Open-Source Framework for Netlist Transformation Approximate Logic Synthesis**
 
 #### Authors
 Jorge Castro-Godínez, professor, Tecnológico de Costa Rica
