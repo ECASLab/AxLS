@@ -4,7 +4,9 @@
 
 #### Authors
 Jorge Castro-Godínez, professor, Tecnológico de Costa Rica
+
 Humberto Barrantes-García, student, Tecnológico de Costa Rica
+
 Roger Morales-Monge, student, Tecnológico de Costa Rica
 
 ## Requirements
