@@ -1,5 +1,6 @@
 
 import os
+import re
 
 def synthesis (rtl, tech, topmodule):
     '''
@@ -20,6 +21,7 @@ def synthesis (rtl, tech, topmodule):
     -------
     str
         path of the sintetized netlist file
+        area estimation obtained from yosys stat command
 
     '''
 
@@ -43,7 +45,7 @@ def synthesis (rtl, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    result = os.system ("yosys synth.ys;")
+    result = os.system (f'yosys synth.ys;')
 
     # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
 
@@ -63,8 +65,11 @@ def resynthesis(netlist, tech, topmodule):
         Name of the technology library
     :param topmodule: string
         Topmodule of the circuit
-    :return: path-like string
-        Path to re-synthetized netlist
+    :return: 
+        path-like string
+            Path to re-synthetized netlist
+        string
+            Area estimation obtained from yosys stat command
     '''
 
 
@@ -88,10 +93,63 @@ def resynthesis(netlist, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    result = os.system ("yosys resynth.ys;")
+    result = os.system (f'yosys resynth.ys;')
 
     # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
 
     os.remove ("resynth.ys")
 
     return netlist_path
+
+def ys_get_area(netlist, tech, topmodule):
+
+    '''
+    
+    Opens the circuit in Yosys and runs stat command to estimate area. Result is parsed
+    from a temporary log file generated.
+    
+    :param netlist: string
+        Synthetized circuit netlist
+    :param tech: string
+        Name of the technology library
+    :param topmodule: string
+        Topmodule of the circuit
+    :return:
+        string
+            Area estimation obtained from yosys stat command
+    '''
+
+    current_dir=os.path.dirname(__file__)
+    file = open(f"{current_dir}/templates/stat.ys","r")
+    file_text = file.read()
+    file.close()
+
+    yosys_log_path = os.path.dirname(netlist) + "/yosys_log.txt"
+
+    file_text = file_text.replace("[[RTLFILENAME]]", netlist)
+    file_text = file_text.replace("[[TOPMODULE]]", topmodule)
+    file_text = file_text.replace("[[TECHNOLOGY]]", f'{current_dir}/templates/{tech}.v')
+    file_text = file_text.replace("[[LIBRARY]]", f"{current_dir}/templates/{tech}.lib")
+
+    file = open('stat.ys',"w")
+    file.write(file_text)
+    file.close()
+
+    # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
+
+    result = os.system (f'yosys stat.ys -l {yosys_log_path};')
+
+    # - - - - - - - - - - - - - - - Parse Area - - - - - - - - - - - - - - -
+
+    with open(yosys_log_path, "r") as read_file:
+        text = read_file.read()
+        pattern = r'Chip area for module\s\'[\s\S]*\':\s([\d\.]*)'
+        area = re.findall(pattern, text)[0]
+        read_file.close()
+
+    # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
+
+    os.remove ("stat.ys")
+    os.remove (yosys_log_path)
+
+    return area
