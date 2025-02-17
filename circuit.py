@@ -15,7 +15,7 @@ sys.path.append(current_dir)
 
 from circuiterror import compute_error
 from netlist import Netlist
-from synthesis import synthesis, resynthesis
+from synthesis import synthesis, resynthesis, ys_get_area
 from technology import Technology
 from utils import get_name, get_random
 import re
@@ -74,14 +74,12 @@ class Circuit:
         self.raw_outputs = netlist.raw_outputs
         self.raw_parameters = netlist.raw_parameters
 
-
         if (saif != ""):
             self.saif=self.saif_parser(saif)
 
         self.output_folder = path.dirname(path.abspath(rtl))
 
-
-
+        self.area = self.get_area()
 
     def get_circuit_xml(self):
         '''
@@ -318,7 +316,7 @@ class Circuit:
                     writeln(netlist_file, "\t" + output)
                     used_outputs.append(output)
             for output in self.raw_inputs:
-                if not (output in used_outputs):
+                if not (output in used_outputs) and not 'iso1p' in output:
                     writeln(netlist_file, "\t" + output)
                     used_outputs.append(output)
 
@@ -335,6 +333,10 @@ class Circuit:
                 assign = f"\tassign {wire} = 1'b{value};"
                 writeln(netlist_file, assign)
 
+            assignments=self.netl_root.findall('./assignments/assign')
+            for a in assignments: #support for special assignments
+                assign=f"\tassign {a.attrib['var']} = {a.attrib['val']};"
+                writeln(netlist_file, assign)
 
             writeln(netlist_file, "endmodule")
         return filepath
@@ -405,7 +407,7 @@ class Circuit:
         #f.view()
         name = f"{self.output_folder}{path.sep}{self.topmodule}"
         f.render(filename=name, view=view)
-        return(f.render(filename=name, view=view))
+        return(f.render(filename=name, format='png'))
 
 
 
@@ -534,7 +536,7 @@ class Circuit:
             equation to compute the error
             options med, wce, wcre,mred, msed
         orig_output : string
-            path to the oringinal results of the circuit
+            path to the original results of the circuit
         new_output : string
             path to the new results file created after the simulation
         clean : bool
@@ -779,7 +781,7 @@ class Circuit:
             path to resynthetized file
         '''
         name=get_name(5)
-        self.netl_file=resynthesis(self.write_to_disk(name),self.tech_file,self.topmodule)
+        self.netl_file =resynthesis(self.write_to_disk(name),self.tech_file,self.topmodule)
 
         netlist = Netlist(self.netl_file, self.technology)
         self.netl_root = netlist.root
@@ -788,11 +790,43 @@ class Circuit:
         self.raw_inputs = netlist.raw_inputs
         self.raw_outputs = netlist.raw_outputs
         self.raw_parameters = netlist.raw_parameters
+        self.area = self.get_area()
 
-        self.inputs.remove('iso1p')
+        done=False
+        while not done:
+            for k in self.inputs:
+                if 'iso1p' in k:
+                    self.inputs.remove(k)
+            for k in self.raw_inputs:
+                if 'iso1p' in k:
+                    self.raw_inputs.remove(k)
+            done=True
+            for k in self.raw_inputs+self.inputs:
+                if 'iso1p' in k:
+                    done=False
+
+
         [self.raw_inputs.remove(k) for k in self.raw_inputs if 'iso1p' in k]
 
 
         os.remove(f'{self.output_folder}/{name}.v')
 
         return self.netl_file
+
+    def get_area(self, method = 'yosys'):
+        '''
+        Calls yosys script to estimate circuit area
+        Add here any other method for area estimation implemented in the future
+
+        :return: string
+            area estimation value
+        '''
+
+        if method == 'yosys':
+            name=get_name(5)
+            self.area=ys_get_area(self.write_to_disk(name),self.tech_file,self.topmodule)
+            os.remove(f'{self.output_folder}/{name}.v')
+
+            return self.area
+        else:
+            raise ValueError(f'{method} is not a valid/implemented area estimation method')
