@@ -4,6 +4,7 @@ from re import split, match, findall
 import xml.etree.cElementTree as ET
 import xml.dom.minidom
 
+from pathlib import Path
 
 class TechLibCell:
     '''
@@ -40,7 +41,7 @@ class Technology:
     def __init__(self, tech):
         self.cells = []
 
-        with open(f"templates/{tech}.v", 'r') as technology_file:
+        with open(f"{Path(__file__).parent}/templates/{tech}.v", 'r') as technology_file:
             content = technology_file.read()
 
             # split the technology file in modules

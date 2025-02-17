@@ -1,0 +1,6 @@
+read_verilog [[RTLFILENAME]]
+read_verilog  [[TECHNOLOGY]]
+hierarchy -top [[TOPMODULE]]
+
+stat -liberty [[LIBRARY]]
+
