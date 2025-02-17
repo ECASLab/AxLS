@@ -144,7 +144,11 @@ def ys_get_area(netlist, tech, topmodule):
     with open(yosys_log_path, "r") as read_file:
         text = read_file.read()
         pattern = r'Chip area for module\s\'[\s\S]*\':\s([\d\.]*)'
-        area = re.findall(pattern, text)[0]
+        area_pattern = re.findall(pattern, text)
+        if (area_pattern):
+            area = area_pattern[0]
+        else:
+            area = 0
         read_file.close()
 
     # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
