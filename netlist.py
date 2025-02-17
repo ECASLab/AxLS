@@ -49,6 +49,7 @@ class Netlist:
             list of tecnology libraries modules
         '''
         self.nodes = []
+        self.assignments=[] #Special assignments, like constant outputs
 
         with open(netl_file, 'r') as circuit_file:
             content = circuit_file.read()
@@ -60,12 +61,15 @@ class Netlist:
         parameters = re.search(expreg,content)
         self.raw_parameters = re.sub('\n','',parameters.group(1))
 
-        '''Support for assignments''' #Unusual case when ports are mapped to wires by Yosys
+        '''Support for assignments''' #Unusual case when ports are mapped to wires by Yosys, also constant assign in resynth
         expreg=r'assign (\S+)\s+=\s+(\S+);'
         assigns=re.findall(expreg,content)
         for a in assigns:
-            if a[0] in self.circuit_outputs:
-                content=content.replace(a[1],a[0])
+            if a[0].split('[')[0] in self.raw_parameters.split(', '):
+                if re.findall(f'(\d+\'\S+)',a[1]): #If its a constant assignment
+                    self.assignments.append(a)
+                else: #Else is wire to wire assignment
+                    content=content.replace(a[1],a[0])
             elif a[1] in self.circuit_inputs:
                 content=content.replace(a[0],a[1])
             else:
@@ -132,6 +136,8 @@ class Netlist:
 
         '''
         root = ET.Element("root")
+
+
         for n in self.nodes:
             node = ET.SubElement(root, "node")
             node.set('name',n.name)
@@ -147,6 +153,7 @@ class Netlist:
 
         circuitinputs = ET.SubElement(root, "circuitinputs")
         circuitoutputs = ET.SubElement(root, "circuitoutputs")
+        circuitassignments=ET.SubElement(root,'assignments')
 
         for o in self.circuit_outputs:
             output_element = ET.SubElement(circuitoutputs, "output")
@@ -154,6 +161,10 @@ class Netlist:
         for i in self.circuit_inputs:
             input_element = ET.SubElement(circuitinputs, "input")
             input_element.set('var', i)
+        for a in self.assignments:
+            assignment_element=ET.SubElement(circuitassignments,"assign")
+            assignment_element.set('var',a[0])
+            assignment_element.set('val',a[1])
 
         return root
 
