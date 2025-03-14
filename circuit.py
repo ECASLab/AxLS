@@ -75,7 +75,7 @@ class Circuit:
         self.raw_parameters = netlist.raw_parameters
 
         if (saif != ""):
-            self.saif=self.saif_parser(saif)
+            self.saif_parser(saif)
 
         self.output_folder = path.dirname(path.abspath(rtl))
 
