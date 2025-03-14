@@ -10,9 +10,6 @@ from random import randint
 from re import sub, findall
 import xml.etree.ElementTree as ET
 
-current_dir=os.path.dirname(__file__)
-sys.path.append(current_dir)
-
 from circuiterror import compute_error
 from netlist import Netlist
 from synthesis import synthesis, resynthesis, ys_get_area
@@ -402,7 +399,6 @@ class Circuit:
                     end = n.attrib["var"]
                     f.edge(start, end)
 
-        #f.view()
         name = f"{self.output_folder}{path.sep}{self.topmodule}"
         f.render(filename=name, view=view)
         return(f.render(filename=name, format='png'))
@@ -496,6 +492,7 @@ class Circuit:
         rtl = self.write_to_disk(name)
 
         top = self.topmodule
+        current_dir=os.path.dirname(__file__)
         tech = f"{current_dir}/templates/" + self.tech_file
         out = self.output_folder
 
@@ -556,6 +553,7 @@ class Circuit:
 
         """Better to temporarily change cwd when executing iverilog"""
         cwd=os.getcwd()
+        current_dir=os.path.dirname(__file__)
         os.chdir(current_dir)
 
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
