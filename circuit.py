@@ -79,8 +79,6 @@ class Circuit:
 
         self.output_folder = path.dirname(path.abspath(rtl))
 
-        self.area = self.get_area()
-
     def get_circuit_xml(self):
         '''
         Returns the circuit netlist in xml format
@@ -790,7 +788,6 @@ class Circuit:
         self.raw_inputs = netlist.raw_inputs
         self.raw_outputs = netlist.raw_outputs
         self.raw_parameters = netlist.raw_parameters
-        self.area = self.get_area()
 
         os.remove(f'{self.output_folder}/{name}.v')
 
@@ -807,9 +804,9 @@ class Circuit:
 
         if method == 'yosys':
             name=get_name(5)
-            self.area=ys_get_area(self.write_to_disk(name),self.tech_file,self.topmodule)
+            area=ys_get_area(self.write_to_disk(name),self.tech_file,self.topmodule)
             os.remove(f'{self.output_folder}/{name}.v')
 
-            return self.area
+            return area
         else:
             raise ValueError(f'{method} is not a valid/implemented area estimation method')
