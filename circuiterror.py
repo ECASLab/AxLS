@@ -49,9 +49,6 @@ def compute_error(metric, original, approximate):
 
     # Read modified output content
     approximate_output = extract_numbers(approximate)
-    if not approximate_output:
-    	return np.inf
-    
 
     # compute the error distance ED := |a - a'|
     error_distance = [abs(original_output[x] - approximate_output[x])
