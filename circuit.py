@@ -502,11 +502,11 @@ class Circuit:
 
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
-        kon = f"iverilog -l {tech}.v -o {out}/{top} {testbench} {rtl}"
+        kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
         result = system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        result = system(f"cd {out}; ./{top}")
+        result = system(f"cd \"{out}\"; ./{top}")
 
         os.chdir(cwd)
 
@@ -558,12 +558,12 @@ class Circuit:
 
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
-        kon = f"iverilog -l {tech}.v -o {out}/{top} {testbench} {rtl}"
+        kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
         #print(kon)
         result = system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        result = system(f"cd {out}; ./{top}")
+        result = system(f"cd \"{out}\"; ./{top}")
         os.chdir(cwd)
 
         error = compute_error(metric, orig_output, new_output)
