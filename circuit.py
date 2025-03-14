@@ -67,10 +67,10 @@ class Circuit:
         # extract the usefull attributes of netlist
         netlist = Netlist(self.netl_file, self.technology)
         self.netl_root = netlist.root
-        self.inputs = [k for k in netlist.circuit_inputs if not k in {'iso1p'}]
+        self.inputs = netlist.circuit_inputs
         self.outputs = netlist.circuit_outputs
 
-        self.raw_inputs = [k for k in netlist.raw_inputs if not k in {'input iso1p;'}]
+        self.raw_inputs = netlist.raw_inputs
         self.raw_outputs = netlist.raw_outputs
         self.raw_parameters = netlist.raw_parameters
 
@@ -316,7 +316,7 @@ class Circuit:
                     writeln(netlist_file, "\t" + output)
                     used_outputs.append(output)
             for output in self.raw_inputs:
-                if not (output in used_outputs) and not 'iso1p' in output:
+                if not (output in used_outputs):
                     writeln(netlist_file, "\t" + output)
                     used_outputs.append(output)
 
@@ -791,23 +791,6 @@ class Circuit:
         self.raw_outputs = netlist.raw_outputs
         self.raw_parameters = netlist.raw_parameters
         self.area = self.get_area()
-
-        done=False
-        while not done:
-            for k in self.inputs:
-                if 'iso1p' in k:
-                    self.inputs.remove(k)
-            for k in self.raw_inputs:
-                if 'iso1p' in k:
-                    self.raw_inputs.remove(k)
-            done=True
-            for k in self.raw_inputs+self.inputs:
-                if 'iso1p' in k:
-                    done=False
-
-
-        [self.raw_inputs.remove(k) for k in self.raw_inputs if 'iso1p' in k]
-
 
         os.remove(f'{self.output_folder}/{name}.v')
 
