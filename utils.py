@@ -41,6 +41,8 @@ def get_random(bits: int, distribution='uniform', samples=1, **kwargs):
 
     Returns
     -------
+    data
+        Randomized data sampled from the specified random distribution
 
     '''
     '''Pasing kwargs'''

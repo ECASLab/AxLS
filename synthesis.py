@@ -21,7 +21,6 @@ def synthesis (rtl, tech, topmodule):
     -------
     str
         path of the sintetized netlist file
-        area estimation obtained from yosys stat command
 
     '''
 
@@ -68,8 +67,6 @@ def resynthesis(netlist, tech, topmodule):
     :return: 
         path-like string
             Path to re-synthetized netlist
-        string
-            Area estimation obtained from yosys stat command
     '''
 
 
@@ -93,7 +90,7 @@ def resynthesis(netlist, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    result = os.system (f'yosys resynth.ys;')
+    result = os.system ('yosys resynth.ys;')
 
     # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
 

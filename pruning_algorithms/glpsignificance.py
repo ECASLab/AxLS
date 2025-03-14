@@ -88,13 +88,14 @@ def LabelCircuit(netlroot,output_significances=[], overwrite=False):
     ----------
     netlroot: ElemntTree.Element
         root of the circuit tree object
+    
+    overwrite: boolean
+        Whether to overwrite existing labels
 
     output_significances: list
         list of significances for circuit outputs,
         if empty it is assumed that significance of output node is 2^node (LSB has less significance that MSB)
 
-    Returns
-    -------
     '''
 
     outputs=[o for o in netlroot.findall("./circuitoutputs/output")] #All circuit outputs

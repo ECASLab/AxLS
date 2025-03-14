@@ -4,6 +4,8 @@ def check_delete(n):
     if 'delete' in n.keys():
         return n.attrib['delete']!='yes'
     else:
+        #By default include nodes that doesn't have the attribute 'delete'.
+        #that attribute will be present only in nodes analyzed for pruning in previous iterations.
         return True
 
 class Cut:
@@ -44,8 +46,6 @@ class Cut:
             a node to append in the cut
         diff: integer
             Difference to add in the cut.
-        Returns
-        -------
 
         '''
 
@@ -64,8 +64,6 @@ class Cut:
             a node to remove from the cut
         diff: integer
             Difference to substract  in the cut.
-        Returns
-        -------
 
         '''
 
@@ -81,7 +79,7 @@ class Cut:
         ----------
         node: ElementTree.element
             a node to append in the cut.
-        threshold: integer
+        threshold: float
             upper limit for cut difference value.
         diff: string
             The name of the criteria used as difference, as it is in the attributes of node node.
