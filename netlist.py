@@ -61,19 +61,14 @@ class Netlist:
         parameters = re.search(expreg,content)
         self.raw_parameters = re.sub('\n','',parameters.group(1))
 
-        '''Support for assignments''' #Unusual case when ports are mapped to wires by Yosys, also constant assign in resynth
+        # Support for `assign`s
+        # - Inputs mapped directly to outputs
+        # - Ports mapped to wires by Yosys
+        # - Constant assignments in resynth
         expreg=r'assign (\S+)\s+=\s+(\S+);'
         assigns=re.findall(expreg,content)
         for a in assigns:
-            if a[0].split('[')[0] in self.raw_parameters.split(', '):
-                if re.findall(f'(\d+\'\S+)',a[1]): #If its a constant assignment
-                    self.assignments.append(a)
-                else: #Else is wire to wire assignment
-                    content=content.replace(a[1],a[0])
-            elif a[1] in self.circuit_inputs:
-                content=content.replace(a[0],a[1])
-            else:
-                content=content.replace(a[0],a[1])
+            self.assignments.append(a)
 
 
         # iterate over every instanced module
