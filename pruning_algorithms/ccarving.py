@@ -1,7 +1,9 @@
 
 
-def check_delete(n):
+def check_node_delete_status(n):
+    #Auxiliary function to check if node is marked to be deleted
     if 'delete' in n.keys():
+        #Return true if the node is not marked to be deleted, returns false otherwise
         return n.attrib['delete']!='yes'
     else:
         #By default include nodes that doesn't have the attribute 'delete'.
@@ -104,7 +106,7 @@ class Cut:
 
             #Check if node is a children of the cut
             children=[c for c in self.circuit_root.findall('node/input[@wire="'+node.findall('output')[0].attrib['wire']+'"]/..')]#children of node node
-            children=[c for c in children if check_delete(c)] #Exclude deleted nodes
+            children=[c for c in children if check_node_delete_status(c)] #Exclude deleted nodes
             if not any([(i in wires) for i in n_inputs]):
                 if children==[]: #if empty, node's output is also a circuit output
                     d+=float(self.circuit_root.findall(f'circuitoutputs/output[@var="{node.findall("output")[0].attrib["wire"]}"]')[0].attrib[diff])#its valid, and its significance correspond to the output's significance
@@ -116,7 +118,7 @@ class Cut:
                     #Check if node's children has ancestry in the cut
                     for c in children:
                         parents=[i for k in get_parents(c,self.circuit_root) for i in k ]
-                        parents=[p for p in parents if check_delete(p)] #filter parents
+                        parents=[p for p in parents if check_node_delete_status(p)] #filter parents
                         parents.remove(node)
                         while parents!=[]:
                             p=parents.pop(0)
@@ -186,13 +188,13 @@ class Cut:
         parents=[]
         for wire in node.findall('input'):
             [parents.append(n) for n in self.circuit_root.findall(f'./node/output[@wire="' + wire.attrib['wire'] + '"]/..')]
-        parents=[p for p in parents if (check_delete(p) and (p not in self.nodes))] #filter parents
+        parents=[p for p in parents if (check_node_delete_status(p) and (p not in self.nodes))] #filter parents
         
         for p in parents: #Check not in cut parents
             '''get p's children'''
             children=[c for c in self.circuit_root.findall(f'./node/input[@wire="{p.findall("output")[0].attrib["wire"]}"]/..') ]
             children.remove(node)
-            children=[c for c in children if (check_delete(c) and (c not in self.nodes))] #filter children
+            children=[c for c in children if (check_node_delete_status(c) and (c not in self.nodes))] #filter children
 
             if (children==[]):
                 valid=False
@@ -200,13 +202,13 @@ class Cut:
 
         '''Check children of node '''
         children=self.circuit_root.findall(f'./node/input[@wire="{node.findall("output")[0].attrib["wire"]}"]/..')
-        children=[c for c in children if (check_delete(c) and (c not in self.nodes))]
+        children=[c for c in children if (check_node_delete_status(c) and (c not in self.nodes))]
         for c in children:
             '''get c's parents'''
             parents=[self.circuit_root.findall(f'./node/output[@wire="{i.attrib["wire"]}"]/..') for i in c.findall('input')]
             parents=[p for k in parents for p in k]
             parents.remove(node)
-            parents=[p for p in parents if (check_delete(p) and (p not in self.nodes))]
+            parents=[p for p in parents if (check_node_delete_status(p) and (p not in self.nodes))]
             if (parents==[]):
                 valid=False
                 must_include.append(c)
@@ -305,7 +307,7 @@ def FindCut(netlroot, diff_threshold, diff='significance', harshness_level=0):
     while True:
         all_nodes=netlroot.findall('./node') #get all nodes
         all_nodes=[n for n in all_nodes if float(n.attrib[diff])<diff_threshold] #filter nodes by difference
-        all_nodes=[n for n in all_nodes if check_delete(n)] #filter deleted nodes
+        all_nodes=[n for n in all_nodes if check_node_delete_status(n)] #filter deleted nodes
         all_nodes=[n for n in all_nodes if not n in [i for k in cut_list for i in k]]#filter nodes already considered in other cuts
 
         if all_nodes==[]:
