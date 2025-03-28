@@ -237,6 +237,7 @@ module CLKBUF_X16 (I, Z);
   buf(Z, I);
 endmodule
 
+`ifdef PRIMITIVES
 primitive \seq_CLKGATETST_X1  (QD, CLK, nextstate, NOTIFIER);
   output QD;
   input CLK;
@@ -336,6 +337,7 @@ module DFFSNQ_X1 (D, SN, CLK, Q);
     buf(Q, IQ);
     buf(nextstate, D);
 endmodule
+`endif
 
 module FA_X1 (A, B, CI, CO, S);
   input A;
@@ -446,6 +448,7 @@ module INV_X16 (I, ZN);
   not(ZN, I);
 endmodule
 
+`ifdef PRIMITIVES
 primitive \seq_LHQ_X1  (IQ, nextstate, E, NOTIFIER);
   output IQ;
   input nextstate;
@@ -474,6 +477,7 @@ module LHQ_X1 (D, E, Q);
     buf(Q, IQ);
     buf(nextstate, D);
 endmodule
+`endif
 
 module MUX2_X1 (I0, I1, S, Z);
   input I0;
@@ -727,6 +731,7 @@ module OR4_X2 (A1, A2, A3, A4, Z);
   or(i_1, A1, A2);
 endmodule
 
+`ifdef PRIMITIVES
 primitive \seq_SDFFRNQ_X1  (IQ, RN, nextstate, CLK, NOTIFIER);
   output IQ;
   input RN;
@@ -806,6 +811,7 @@ module SDFFSNQ_X1 (D, SE, SI, SN, CLK, Q);
     and(i_1, i_2, D);
     not(i_2, SE);
 endmodule
+`endif
 
 module TBUF_X1 (EN, I, Z);
   input EN;
@@ -904,6 +910,7 @@ module XOR2_X1 (A1, A2, Z);
   or(i_21, A1, A2);
 endmodule
 
+`ifdef PRIMITIVES
 `ifdef TETRAMAX
 `else
   primitive ng_xbuf (o, i, d);
@@ -916,6 +923,7 @@ endmodule
 	   x   1   : 1 ;
 	endtable
   endprimitive
+`endif
 `endif
 //
 // End of file

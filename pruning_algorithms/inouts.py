@@ -1,4 +1,6 @@
 
+from copy import copy
+
 def GetInputsAux(netl_root, node, constants, path):
     '''
     Appends nodes that could be deleted to the path variable
@@ -57,7 +59,7 @@ def GetInputs(netl_root, inputs):
         constant_wires = [w for w in input_wires if f"[{str(b)}]" in w]
         constants += constant_wires
     '''
-    constants = inputs
+    constants = copy(inputs) #Avoid circuit structure changes
     # start iterating from the nodes that have constant inputs
     for c in constants:
         children = netl_root.findall(f"./node/input[@wire='{c}']/..")
@@ -123,7 +125,7 @@ def GetOutputs(netl_root, outputs):
     '''
     path = []
 
-    constants = outputs
+    constants = copy(outputs) #Avoid circuit structure changes
     for output in outputs:
         nodes = netl_root.findall(f"./node/output[@wire='{output}']/..")
         for node in nodes:

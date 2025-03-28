@@ -49,6 +49,7 @@ class Netlist:
             list of tecnology libraries modules
         '''
         self.nodes = []
+        self.assignments=[] #Special assignments, like constant outputs
 
         with open(netl_file, 'r') as circuit_file:
             content = circuit_file.read()
@@ -56,9 +57,19 @@ class Netlist:
         self.raw_outputs, self.circuit_outputs = self.get_outputs(content)
         self.raw_inputs, self.circuit_inputs = self.get_inputs(content)
 
-        expreg = r'module [a-zA-Z0-9_]*\s*\((.*)\);'
+        expreg = r'module [a-zA-Z0-9_]*\s*\(([\s\S]+?)\);'
         parameters = re.search(expreg,content)
-        self.raw_parameters = parameters.group(1)
+        self.raw_parameters = re.sub('\n','',parameters.group(1))
+
+        # Support for `assign`s
+        # - Inputs mapped directly to outputs
+        # - Ports mapped to wires by Yosys
+        # - Constant assignments in resynth
+        expreg=r'assign (\S+)\s+=\s+(\S+);'
+        assigns=re.findall(expreg,content)
+        for a in assigns:
+            self.assignments.append(a)
+
 
         # iterate over every instanced module
         expreg = r'([a-zA-Z0-9_]+) (.+) \(([\n\s\t.a-zA-Z0-9\(\[\]\),_]*)\);'
@@ -103,6 +114,7 @@ class Netlist:
                     print ("[ERROR] no input or output for param: " + \
                         param_name + " at cell " + var + ' ' + cell_name)
 
+
             self.nodes.append(node)
 
         self.root = self.to_xml()
@@ -119,6 +131,8 @@ class Netlist:
 
         '''
         root = ET.Element("root")
+
+
         for n in self.nodes:
             node = ET.SubElement(root, "node")
             node.set('name',n.name)
@@ -134,6 +148,7 @@ class Netlist:
 
         circuitinputs = ET.SubElement(root, "circuitinputs")
         circuitoutputs = ET.SubElement(root, "circuitoutputs")
+        circuitassignments=ET.SubElement(root,'assignments')
 
         for o in self.circuit_outputs:
             output_element = ET.SubElement(circuitoutputs, "output")
@@ -141,6 +156,10 @@ class Netlist:
         for i in self.circuit_inputs:
             input_element = ET.SubElement(circuitinputs, "input")
             input_element.set('var', i)
+        for a in self.assignments:
+            assignment_element=ET.SubElement(circuitassignments,"assign")
+            assignment_element.set('var',a[0])
+            assignment_element.set('val',a[1])
 
         return root
 

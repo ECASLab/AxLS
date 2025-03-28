@@ -11,6 +11,9 @@ SAIF='circuits/brent.kung.16b/UBBKA_15_0_15_0.saif'
 # Circuit creates a representation of the circuit using python objects
 our_circuit = Circuit(RTL, "NanGate15nm", SAIF)
 
+
+our_circuit.exact_output(TB)
+
 # For example:
 
 # if you want to see the circuit xml
