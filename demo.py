@@ -99,7 +99,7 @@ pseudo_probprun = GetOneNode(our_circuit.netl_root)
 node, output, time = next(pseudo_probprun)
 
 print(
-    f"ProbPrun suggest delete the node {node} because is {output} {time}% of the time"
+    f"ProbPrun suggest delete the node {node} because it's {output} {time}% of the time"
 )
 
 # so lets take out the 10 most useless nodes
