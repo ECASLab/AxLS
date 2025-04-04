@@ -1,6 +1,9 @@
 # Cloned benchmarks
 ALS-benchmark-circuits/
 
+# Images of circuits
+*.png
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

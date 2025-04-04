@@ -413,7 +413,7 @@ class Circuit:
                     end = n.attrib["var"]
                     f.edge(start, end)
 
-        return(f.render(filename=filename, format=format, view=view))
+        return(f.render(filename=filename, format=format, view=view, cleanup=True))
 
 
 
