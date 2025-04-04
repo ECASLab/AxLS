@@ -339,15 +339,19 @@ class Circuit:
         return filepath
 
 
-    def show (self, show_deletes=False, view=True):
+    def show (self, filename=None, show_deletes=False, view=True):
         '''
-        Displays the circuit as a graph. Requires the graphviz python
-        package to be installed.
+        Renders the circuit as a png image of a graph.
+        Requires the graphviz python package to be installed.
 
         Parameters
         ----------
-        show_deletes : boolean
+        filename: str (defaults to the circuit's name + .png)
+            name of the png image to render
+        show_deletes : boolean (defaults to False)
             nodes to be deleted will be colored in red
+        view: boolean
+            if True, opens the image automatically
         '''
         root = self.netl_root
         f = Digraph(self.topmodule)
@@ -402,9 +406,7 @@ class Circuit:
                     end = n.attrib["var"]
                     f.edge(start, end)
 
-        name = f"{self.output_folder}{path.sep}{self.topmodule}"
-        f.render(filename=name, view=view)
-        return(f.render(filename=name, format='png'))
+        return(f.render(filename=filename, format='png', view=view))
 
 
 
