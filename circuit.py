@@ -576,7 +576,7 @@ class Circuit:
 
         return error
 
-    def generate_dataset(self, samples, distribution='uniform', **kwargs):
+    def generate_dataset(self, filename, samples, distribution='uniform', **kwargs):
         '''
 
         Generates a dataset of randomly distributed data for each input of the circuit.
@@ -586,6 +586,10 @@ class Circuit:
 
         Parameters
         ----------
+        filename: string
+            Path to the output dataset file.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
         samples: int
             How many rows of data to generate.
         distribution: string
@@ -609,9 +613,6 @@ class Circuit:
                 d for decimal
                 b for binary
                 o for octal
-        Returns
-        -------
-            path to the generated dataset
         '''
 
 
@@ -639,19 +640,22 @@ class Circuit:
             format=f'0{bitwidth}b' if format=='b' else format #ensure right number of bits if binary
             data.append([f'{i:{format}}' for i in rows])
         data=list(zip(*data)) # Transpose data see: https://stackoverflow.com/questions/10169919/python-matrix-transpose-and-zip
-        np.savetxt(f'{self.output_folder}/dataset',data,fmt='%s')
+        np.savetxt(filename,data,fmt='%s')
 
-        return f'{self.output_folder}/dataset'
+        return
 
-    def write_tb(self, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False):
+    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False):
         '''
         Writes a basic testbench for the circuit.
 
-        Will create a <topmodule>_tb.v file in the same folder where the
-        original circuit RTL is located.
-
         Parameters
         ----------
+        filename: string
+            Path to the output testbench file.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
+        dataset_file: string
+           Path to the dataset file which can be created with `generate_dataset`.
         iterations (optional): int
             How many iterations to do (how many inputs pass to the circuit, and outputs write to file).
             Requires dataset to be generated, by default it takes the number of rows.
@@ -672,10 +676,13 @@ class Circuit:
         '''
 
         '''Check for existing dataset'''
-        if os.path.exists(f'{self.output_folder}/dataset') and iterations is None:
-            file=open(f'{self.output_folder}/dataset', 'r')
-            iterations=len(file.read().splitlines())
-            file.close()
+        if iterations is None:
+            if os.path.exists(dataset_file):
+                file=open(dataset_file, 'r')
+                iterations=len(file.read().splitlines())
+                file.close()
+            else:
+                raise FileNotFoundError(f"Dataset file '{dataset_file}' not found. Either create it or manually pass an 'iterations' parameter to Circuit.write_tb.")
 
 
         '''Get inputs/outputs information'''
@@ -742,8 +749,11 @@ class Circuit:
         if dump_vcd:
             text=f'{text} $dumpfile("./{self.topmodule}.vcd");\n' \
                  f' $dumpvars(0,{self.topmodule}_tb);\n'
+
+        relative_dataset_path = os.path.relpath(dataset_file, start=os.path.dirname(filename))
+
         text=f'{text} file=$fopen("output.txt","w");\n' \
-             f' mem=$fopen("dataset", "r");\n'
+             f' mem=$fopen("{relative_dataset_path}", "r");\n'
         for i in inputs_info.keys():
             text=f'{text} {i} = 0;\n'
         text=f'{text} #{delay}\n' \
@@ -771,11 +781,11 @@ class Circuit:
               f'end\n' \
               f'endmodule\n'
 
-        with open(os.path.join(f'{self.output_folder}/{self.topmodule}_tb.v'), 'w') as file:
+        with open(os.path.join(filename), 'w') as file:
             file.write(text)
             file.close()
 
-        return file.name
+        return
 
     def resynth(self):
         '''
