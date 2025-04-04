@@ -11,7 +11,8 @@ Roger Morales-Monge, student, Tecnológico de Costa Rica
 
 ## Requirements
 
-To use AxLS, Python, Yosys, and Icarus Verilog are required, at least in the following versions:
+To use AxLS, Python, Yosys, and Icarus Verilog are required, at least in the
+following versions:
 
 | name           | version | -    |
 | -------------- | ------- | ---- |
@@ -48,12 +49,20 @@ tar -zxvf verilog-10.3.tar.gz
 cd verilog-10.3/
 ./configure
 make
-sudo make install 
+sudo make install
 ```
 
 
 
 ## Using AxLS
+
+### Cloning benchmarks
+
+First, you'll need to clone the benchmarks from the [ALS-benchmark-circuits](https://github.com/ECASLab/ALS-benchmark-circuits) repo.
+
+```sh
+git clone https://github.com/ECASLab/ALS-benchmark-circuits --depth=1
+```
 
 ### Parsing a netlist
 
@@ -129,7 +138,7 @@ print(our_circuit.netl_root)
 [<Element 'node' at 0xb587de14>, <Element 'node' at 0xb581057c>]
 ```
 
-Using this node you can implement your own pruning algorithms. Because ElementTree allows you to search XML nodes based on their attributes using xpath syntax. 
+Using this node you can implement your own pruning algorithms. Because ElementTree allows you to search XML nodes based on their attributes using xpath syntax.
 
 > Don't Reinvent the Wheel!
 
@@ -158,12 +167,12 @@ When you set the attribute `delete` of a node to `yes`, it means that this node 
 
 This framework currently provides two approaches, as examples, in order to suggest which nodes you should delete:
 
-* InOuts: suggest which nodes to delete if the inputs or the outputs are constants. 
+* InOuts: suggest which nodes to delete if the inputs or the outputs are constants.
 * Pseudo-Probabilistic Pruning: suggest nodes to delete based on the toggling time a specific node keep a constant value (1 or 0) in their output. Similar as presented in J. Schlachter, V. Camus, K. V. Palem and C. Enz, "Design and Applications of Approximate Circuits by Gate-Level Pruning," in IEEE Transactions on Very Large Scale Integration (VLSI) Systems, vol. 25, no. 5, pp. 1694-1702, May 2017, doi: 10.1109/TVLSI.2017.2657799.
 
 ### InOuts
 
-1. Lets start with InOuts methods. Import both `GetInputs` and `GetOutputs` 
+1. Lets start with InOuts methods. Import both `GetInputs` and `GetOutputs`
 
 ```python
 from pruning_algorithms.inouts import GetInputs, GetOutputs
