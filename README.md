@@ -488,14 +488,13 @@ Files and Folders description:
 
 | Name                | Description                                                  | Used   |
 | ------------------- | ------------------------------------------------------------ | ------ |
-| circuits            | Contains the rtl and testbench of some sample circuits.      |        |
 | prunning_algorithms | Folder containing pruning techniques implementations.        |        |
 | `inouts.py`         | Contains the implementation of `GetInputs` and `GetOutputs` example pruning methods. |        |
 | `probprun.py`       | Contains the implementation of a pseudo Probabilistic Pruning method. `GetOneNode` is a python generator. It will retrieve one node to delete each time it is called. |        |
 | templates           | Folder containing some libraries and scripts used for synthesis. |        |
 | `NanGate15nm.lib`   |                                                              |        |
 | `NanGate15nm.v`     |                                                              |        |
-| `synth.ys`          | Script for synthesize a circuit using yosys.                 |        |
+| `synth.ys`          | Script to synthesize a circuit using yosys.                 |        |
 | `__main__.py`       | It executes the tool using the arguments from the command line. **Still in progress**. | **No** |
 | `barcas.py`         | Is the Pruning Implementation using the InOuts techniques.   |        |
 | `circuit.py`        | Object that represents a circuit as a XML tree. Receives a rtl and a library in order to build the circuit and be able to simulate it. |        |
