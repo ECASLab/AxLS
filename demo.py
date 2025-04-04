@@ -60,17 +60,13 @@ if CREATE_IMAGE:
     our_circuit.show(
         "demo_circuit_with_deletion", show_deletes=True, view=VIEW_IMAGE, format="png"
     )
-    input("Press any key to continue...")
-
-# lets write the new netlist without the deleted node
-our_circuit.write_to_disk(filename="netlist_without_101.v")
+input("\nPress any key to continue with InOuts method deletion suggestions...")
 
 # Lets start with our pruning algorithms
 
 # Extracts the nodes that can be deleted if inputs of bit 0 are constants
 inputs = ["X[0]", "Y[0]"]
 depricable_nodes = GetInputs(our_circuit.netl_root, inputs)
-print(depricable_nodes)
 print("Nodes to delete if input 0 is constant")
 print([n.attrib["var"] for n in depricable_nodes])
 
@@ -84,7 +80,6 @@ print([n.attrib["var"] for n in depricable_nodes])
 # Extracts the nodes that can be deleted if output of bit 0 is constant
 outputs = ["S[0]"]
 depricable_nodes = GetOutputs(our_circuit.netl_root, outputs)
-print(depricable_nodes)
 print("Nodes to delete if output 0 is constant")
 print([n.attrib["var"] for n in depricable_nodes])
 
@@ -95,6 +90,7 @@ print("Nodes to delete if output 5 is constant")
 print([n.attrib["var"] for n in depricable_nodes])
 
 # Lets try another method: pseudo probprub.
+input("\nPress any key to continue with Pseudo Probrun method deletion suggestions...")
 # Every time we call the function it returns the recommended node to delete
 # because it was all the time in 1 or 0
 
@@ -113,7 +109,8 @@ for x in range(10):
     print(f"{node} is {output} {time}% of the time")
 
 
+input("Press any key to continue with the simulation of the approximate circuit...")
 print("Simulating...")
 error = our_circuit.simulate_and_compute_error(TB, EXACT_RESULT, APPROX_RESULT, "med")
 print("Simulation finished...")
-print(error)
+print("Mean Error Distance of approximate circuit with node _101_ deleted:", error)
