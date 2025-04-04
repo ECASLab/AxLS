@@ -1,4 +1,9 @@
 
+def get_parents(n, root):
+    '''
+    Check if node's children has ancestry in the cut
+    '''
+    return [root.findall('node/output[@wire="'+i.attrib['wire']+'"]/..') for i in n.findall('input')]
 
 def check_node_delete_status(n):
     #Auxiliary function to check if node is marked to be deleted
@@ -110,10 +115,8 @@ class Cut:
                     d+=float(self.circuit_root.findall(f'circuitoutputs/output[@var="{node.findall("output")[0].attrib["wire"]}"]')[0].attrib[diff])#its valid, and its significance correspond to the output's significance
                     return d
                 else:
-                    children=[c for c in children if not c in self.nodes] #filter children in cut
+                    children=[c for c in children if c not in self.nodes] #filter children in cut
 
-                    get_parents=lambda n, root: [root.findall('node/output[@wire="'+i.attrib['wire']+'"]/..') for i in n.findall('input')]
-                    #Check if node's children has ancestry in the cut
                     for c in children:
                         parents=[i for k in get_parents(c,self.circuit_root) for i in k ]
                         parents=[p for p in parents if check_node_delete_status(p)] #filter parents
@@ -185,7 +188,7 @@ class Cut:
         '''Check parents of node '''
         parents=[]
         for wire in node.findall('input'):
-            [parents.append(n) for n in self.circuit_root.findall(f'./node/output[@wire="' + wire.attrib['wire'] + '"]/..')]
+            [parents.append(n) for n in self.circuit_root.findall('./node/output[@wire="' + wire.attrib['wire'] + '"]/..')]
         parents=[p for p in parents if (check_node_delete_status(p) and (p not in self.nodes))] #filter parents
 
         for p in parents: #Check not in cut parents
@@ -306,7 +309,7 @@ def FindCut(netlroot, diff_threshold, diff='significance', harshness_level=0):
         all_nodes=netlroot.findall('./node') #get all nodes
         all_nodes=[n for n in all_nodes if float(n.attrib[diff])<diff_threshold] #filter nodes by difference
         all_nodes=[n for n in all_nodes if check_node_delete_status(n)] #filter deleted nodes
-        all_nodes=[n for n in all_nodes if not n in [i for k in cut_list for i in k]]#filter nodes already considered in other cuts
+        all_nodes=[n for n in all_nodes if n not in [i for k in cut_list for i in k]]#filter nodes already considered in other cuts
 
         if all_nodes==[]:
             break
@@ -322,12 +325,12 @@ def FindCut(netlroot, diff_threshold, diff='significance', harshness_level=0):
         tries=0
         while (all_nodes!=[]):
 
-            nodes_list=[n for n in all_nodes if not n in (biggest_cut.nodes + banned_nodes)]
+            nodes_list=[n for n in all_nodes if n not in (biggest_cut.nodes + banned_nodes)]
             while nodes_list!=[]:
                 for n in nodes_list:
                     result, added_nodes=cut.expandCut(n,diff_threshold,diff,[])
                     if not result:
-                        banned_nodes.append(n);
+                        banned_nodes.append(n)
                     else:
                         if cut.size>cut_record:
                             biggest_cut=None

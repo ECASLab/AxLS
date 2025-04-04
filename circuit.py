@@ -211,8 +211,8 @@ class Circuit:
         wires = list(set([output.attrib["wire"] for output in outputs]))
 
         # make sure there are not any inputsoutputs in wires
-        wires = [wire for wire in wires if not wire in self.inputs]
-        wires = [wire for wire in wires if not wire in self.outputs]
+        wires = [wire for wire in wires if wire not in self.inputs]
+        wires = [wire for wire in wires if wire not in self.outputs]
         return wires
 
 
@@ -304,20 +304,20 @@ class Circuit:
             writeln(netlist_file, module)
 
             for wire in self.get_circuit_wires():
-                if not wire in to_be_deleted:
+                if wire not in to_be_deleted:
                     writeln(netlist_file, f"\twire {wire};")
             used_outputs=[]
             for output in self.raw_outputs:
-                if not (output in used_outputs):
+                if output not in used_outputs:
                     writeln(netlist_file, "\t" + output)
                     used_outputs.append(output)
             for output in self.raw_inputs:
-                if not (output in used_outputs):
+                if output not in used_outputs:
                     writeln(netlist_file, "\t" + output)
                     used_outputs.append(output)
 
             for node_var in self.get_circuit_nodes():
-                if not node_var in nodes_to_delete:
+                if node_var not in nodes_to_delete:
                     node = self.get_node(node_var)
                     instance = f"\t{node.attrib['name']} {node.attrib['var']}"
                     inputs = format_io(node, "in")
