@@ -73,7 +73,7 @@ class Cut:
         self.size=self.size-1
         self.difference-=diff
 
-    def AddedDiff_aux(self,node, threshold:float, diff='significance'):
+    def AddedDiff_aux(self,node, diff='significance'):
         '''
         auxiliary function to get cut difference after a node expansion
 
@@ -81,11 +81,9 @@ class Cut:
         ----------
         node: ElementTree.element
             a node to append in the cut.
-        threshold: float
-            upper limit for cut difference value.
         diff: string
             The name of the criteria used as difference, as it is in the attributes of node node.
-        
+
         Returns
         -------
         integer:
@@ -154,7 +152,7 @@ class Cut:
 
         '''
 
-        d=self.AddedDiff_aux(node, threshold, diff)
+        d=self.AddedDiff_aux(node, diff)
         if self.difference+d<threshold:
             return True, d
         else:
@@ -189,7 +187,7 @@ class Cut:
         for wire in node.findall('input'):
             [parents.append(n) for n in self.circuit_root.findall(f'./node/output[@wire="' + wire.attrib['wire'] + '"]/..')]
         parents=[p for p in parents if (check_node_delete_status(p) and (p not in self.nodes))] #filter parents
-        
+
         for p in parents: #Check not in cut parents
             '''get p's children'''
             children=[c for c in self.circuit_root.findall(f'./node/input[@wire="{p.findall("output")[0].attrib["wire"]}"]/..') ]
@@ -314,7 +312,7 @@ def FindCut(netlroot, diff_threshold, diff='significance', harshness_level=0):
             break
 
         all_nodes.sort(key=lambda n: float(n.attrib[diff]),reverse=True)#sort nodes by difference criteria, greater first
-        
+
         '''Create a cut object'''
         cut=Cut(netlroot)
         biggest_cut=Cut(netlroot)
@@ -323,7 +321,7 @@ def FindCut(netlroot, diff_threshold, diff='significance', harshness_level=0):
         '''Attempt to add a node in the cut and make it bigger'''
         tries=0
         while (all_nodes!=[]):
-        
+
             nodes_list=[n for n in all_nodes if not n in (biggest_cut.nodes + banned_nodes)]
             while nodes_list!=[]:
                 for n in nodes_list:
@@ -346,7 +344,7 @@ def FindCut(netlroot, diff_threshold, diff='significance', harshness_level=0):
                                 biggest_cut.difference=cut.difference
                                 biggest_cut.size=cut.size
                                 cut_record=biggest_cut.size
-                               
+
                     [cut.deleteNode(n[0],n[1]) for n in added_nodes]
 
                 cut=biggest_cut
@@ -359,7 +357,7 @@ def FindCut(netlroot, diff_threshold, diff='significance', harshness_level=0):
             else:
                 cut_list.append(biggest_cut.nodes)
                 all_nodes=[n for n in all_nodes if n not in biggest_cut.nodes]
-                
+
                 #Clear for a new expansion
                 cut=None
                 cut=Cut(netlroot)
