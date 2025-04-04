@@ -11,7 +11,8 @@ Roger Morales-Monge, student, Tecnológico de Costa Rica
 
 ## Requirements
 
-To use AxLS, Python, Yosys, and Icarus Verilog are required, at least in the following versions:
+To use AxLS, Python, Yosys, and Icarus Verilog are required, at least in the
+following versions:
 
 | name           | version | -    |
 | -------------- | ------- | ---- |
@@ -48,10 +49,112 @@ tar -zxvf verilog-10.3.tar.gz
 cd verilog-10.3/
 ./configure
 make
-sudo make install 
+sudo make install
 ```
 
+### Cloning benchmarks
 
+You'll need to clone the benchmarks from the [ALS-benchmark-circuits](https://github.com/ECASLab/ALS-benchmark-circuits) repo.
+
+```sh
+git clone https://github.com/ECASLab/ALS-benchmark-circuits --depth=1
+```
+
+## Executing Demo
+
+After cloning the benchmarks and installing the required dependencies you can
+execute the `demo.py`.
+
+Note that the demo requires the python `graphviz` package because it renders
+images of the circuit graph. You can skip this by modifying the file and setting
+the `CREATE_IMAGE` constant to `False.
+
+Example installation with `pip`:
+```sh
+pip install graphviz
+```
+
+Demo execution:
+```sh
+python demo.py
+```
+
+#### Sample output
+
+The demo prints a lot of output, including
+
+- Progress reports of simulations:
+
+```
+-- Progress:       99995/100000 --
+-- Progress:       99996/100000 --
+-- Progress:       99997/100000 --
+-- Progress:       99998/100000 --
+-- Progress:       99999/100000 --
+-- Progress:      100000/100000 --
+```
+
+- The circuit's XML:
+```
+Showing circuit XML
+---------------------
+b'<root><node name="NAND2_X1" var="_067_"><input name="A1" wire="Y[15]" /><input
+/* Skipping most of the output */
+<output var="S[16]" /></circuitoutputs><assignments /></root>'
+---------------------
+Press any key to continue...
+```
+
+- The circuit graph representation as an image, including the original circuit and with a node set for deletion.
+
+- Some circuit properties:
+
+```
+Circuit inputs...
+['X[0]', 'X[1]', 'X[2]', 'X[3]', 'X[4]', 'X[5]', 'X[6]', 'X[7]', 'X[8]', 'X[9]
+', 'X[10]', 'X[11]', 'X[12]', 'X[13]', 'X[14]', 'X[15]', 'Y[0]', 'Y[1]', 'Y[2]
+', 'Y[3]', 'Y[4]', 'Y[5]', 'Y[6]', 'Y[7]', 'Y[8]', 'Y[9]', 'Y[10]', 'Y[11]', '
+Y[12]', 'Y[13]', 'Y[14]', 'Y[15]']
+Circuit outputs...
+['S[0]', 'S[1]', 'S[2]', 'S[3]', 'S[4]', 'S[5]', 'S[6]', 'S[7]', 'S[8]', 'S[9]
+', 'S[10]', 'S[11]', 'S[12]', 'S[13]', 'S[14]', 'S[15]', 'S[16]']
+Root of XML tree:  <Element 'root' at 0x724c1a30ab60>
+```
+
+- Sample of what the InOuts method would suggest:
+
+```
+Nodes to delete if input 0 is constant
+['_109_', '_129_']
+Nodes to delete if input 3 is constant
+['_109_', '_129_', '_108_', '_110_', '_112_', '_111_', '_150_', '_106_', '_107_
+', '_113_', '_114_', '_149_', '_115_', '_104_', '_105_', '_116_', '_147_', '_14
+8_']
+Nodes to delete if output 0 is constant
+['_129_']
+Nodes to delete if output 5 is constant
+['_145_', '_144_']
+```
+
+- Sample of what the Pseudo Probrun method would suggest:
+```
+ProbPrun suggest delete the node _068_ because it's 0 75% of the time
+_069_ is 0 75% of the time
+_070_ is 1 75% of the time
+_073_ is 1 75% of the time
+_075_ is 0 75% of the time
+_076_ is 1 75% of the time
+_079_ is 1 75% of the time
+_085_ is 1 75% of the time
+_086_ is 0 75% of the time
+_093_ is 0 75% of the time
+_096_ is 1 75% of the time
+```
+
+- Final error of approximate circuit:
+```
+Mean Error Distance of approximate circuit with node _101_ deleted: 3.979
+```
 
 ## Using AxLS
 
@@ -67,13 +170,10 @@ from circuit import Circuit
 
 ```python
 # verilog file of the circuit we want to approximate
-RTL='circuits/brent.kung.16b/UBBKA_15_0_15_0.v'
-
-# testbench file for the circuit we want to approximate
-TB='circuits/brent.kung.16b/UBBKA_15_0_15_0_tb.v'
+RTL = "ALS-benchmark-circuits/BK_16b/BK_16b.v"
 
 # [optional] a saif for the circuit we want to approximate
-SAIF='circuits/brent.kung.16b/UBBKA_15_0_15_0.saif'
+SAIF = "ALS-benchmark-circuits/BK_16b/NanGate15nm/BK_16b.saif"
 ```
 
 3. When creating a `Circuit` object, the library parse every file and builds an XML tree with all the relevant information related with the circuit
@@ -87,12 +187,6 @@ our_circuit = Circuit(RTL, "NanGate15nm", SAIF)
 
 ```python
 print(our_circuit.get_circuit_xml())
-```
-
-You should see something like this:
-
-```xml-dtd
-<!-- complete file at circuits/brent.kung.16b/UBBKA_15_0_15_0.xml -->
 ```
 
 5. Or you can also print the circuit as an graph with `show()`
@@ -126,16 +220,16 @@ print(our_circuit.netl_root)
 ```
 
 ```
-[<Element 'node' at 0xb587de14>, <Element 'node' at 0xb581057c>]
+<Element 'root' at 0x724c1a30ab60>
 ```
 
-Using this node you can implement your own pruning algorithms. Because ElementTree allows you to search XML nodes based on their attributes using xpath syntax. 
+Using this node you can implement your own pruning algorithms. Because ElementTree allows you to search XML nodes based on their attributes using xpath syntax.
 
 > Don't Reinvent the Wheel!
 
 
 
-## Deleting a node
+### Deleting a node
 
 1. The first example method we provide to delete nodes is quite simple, just delete a node based on its name. You can do it in two different ways:
 
@@ -154,16 +248,80 @@ our_circuit.delete("_101_")
 
 When you set the attribute `delete` of a node to `yes`, it means that this node will be deleted the next time our circuit is saved in the filesystem. **The node will remain in the xml tree!** (just in case we need to revert a deletion).
 
-## Pruning Algorithms
+### Simulation and Error Estimation
 
-This framework currently provides two approaches, as examples, in order to suggest which nodes you should delete:
+Simulation stage and error estimation are executed inside one method called `simulate_and_compute_error`. But first, in order to execute a simulation and calculate its error you need to provide:
 
-* InOuts: suggest which nodes to delete if the inputs or the outputs are constants. 
-* Pseudo-Probabilistic Pruning: suggest nodes to delete based on the toggling time a specific node keep a constant value (1 or 0) in their output. Similar as presented in J. Schlachter, V. Camus, K. V. Palem and C. Enz, "Design and Applications of Approximate Circuits by Gate-Level Pruning," in IEEE Transactions on Very Large Scale Integration (VLSI) Systems, vol. 25, no. 5, pp. 1694-1702, May 2017, doi: 10.1109/TVLSI.2017.2657799.
+- A testbench.
+- A dataset for the testbench to use.
+- The exact results.
+- The name of the approximated results file.
+- Error metric to use.
 
-### InOuts
+1. Let's start generating a dataset that we'll use in our simulations:
 
-1. Lets start with InOuts methods. Import both `GetInputs` and `GetOutputs` 
+```python
+# Use 10_000 input samples of the circuit. You'll want a larger or smaller
+# sample size based on the circuit inputs size.
+# For example, this one has 32 bits, 2^32 which gives input possibilities
+# (~4 billion). So let's sample around 1% of those input possibilities with 40
+# million samples.
+
+SAMPLES=40_000_000
+DATASET = "ALS-benchmark-circuits/BK_16b/dataset"
+
+our_circuit.generate_dataset(DATASET, SAMPLES)
+```
+
+2. Now we can generate a testbench that will rely on the dataset:
+
+```python
+# The path where the output of this simulation will be created
+TB = "ALS-benchmark-circuits/BK_16b/BK_16b_tb.v"
+our_circuit.write_tb(TB, DATASET, iterations=SAMPLES)
+```
+
+3. We can generate an exact output of our circuit with the `exact_output` method:
+
+```python
+EXACT_RESULT = "ALS-benchmark-circuits/BK_16b/output_exact.txt"
+our_circuit.exact_output(TB, EXACT_RESULT)
+```
+
+4. Now we are ready to execute the simulation of our approximate circuit. We pass in the `"med"` argument as the error metric to be used. In this case Mean Error Distance.
+
+```python
+# The path where the output of this simulation will be created
+APPROX_RESULT = "ALS-benchmark-circuits/BK_16b/output_approx.txt"
+
+error = our_circuit.simulate_and_compute_error(TB, EXACT_RESULT, APPROX_RESULT, "med")
+```
+
+This should returns a number like the following:
+
+```
+63.011
+```
+
+## ALS Algorithms
+
+This framework currently provides 2 kinds of ALS algorithms:
+
+- Pruning algorithms
+- (TODO IN PROGRESS) ML Supervised Learning algorithms
+
+### Pruning Algorithms
+
+These algorithms suggest which nodes to delete based on circuit data or
+heuristics.
+
+TODO: Missing documentation on `ccarving` and `glpsignificance`
+
+#### InOuts
+
+Suggest which nodes to delete if the inputs or the outputs are constants.
+
+1. Lets start with InOuts methods. Import both `GetInputs` and `GetOutputs`
 
 ```python
 from pruning_algorithms.inouts import GetInputs, GetOutputs
@@ -239,9 +397,13 @@ Nodes to delete if output 5 is constant
 ['_091_']
 ```
 
+#### Pseudo-Probabilistic Pruning (ProbPun)
 
+Suggests nodes to delete based on the toggling time a specific node keep a constant value (1 or 0) in their output.
 
-### ProbPun
+Similar as presented in
+
+> J. Schlachter, V. Camus, K. V. Palem and C. Enz, "Design and Applications of Approximate Circuits by Gate-Level Pruning," in IEEE Transactions on Very Large Scale Integration (VLSI) Systems, vol. 25, no. 5, pp. 1694-1702, May 2017, doi: 10.1109/TVLSI.2017.2657799.
 
 1. In order to use ProbPrun methods **make sure you specified a SAIF file when you created the Circuit object**. First lets import the method:
 
@@ -259,13 +421,13 @@ pseudo_probprun = GetOneNode(our_circuit.netl_root)
 
 ```python
 node, output, time = next(pseudo_probprun)
-print(f"ProbPrun suggest delete the node {node} because is {output} {time}% of the time")
+print(f"ProbPrun suggest delete the node {node} because it's {output} {time}% of the time")
 ```
 
 This should show:
 
 ```
-ProbPrun suggest delete the node _114_ because is 0 100% of the time
+ProbPrun suggest delete the node _114_ because it's 0 100% of the time
 ```
 
 4. As any generator, you can use it in for loops:
@@ -312,35 +474,13 @@ _077_ is 1 75% of the time
 _082_ is 0 75% of the tim
 ```
 
-## Simulation and Error Estimation
+### ML Supervised Learning
 
-Simulation stage and error estimation are executed inside one method called `simulate`. In order to execute a simulation you need to provide:
+These algorithms train an ML model based on a circuit's inputs and outputs in
+order to learn a generalized version of the boolean function, then maps the
+model into an approximate circuit.
 
-* The exact results
-* The name of the approximated results file
-* Error metric
-
-1. Lets start defining the names of the original and approximated results files. **ORIGINAL must exists, while APPROX is the name of the file that will be produced by the testbench**.
-
-```python
-ORIGINAL='circuits/brent.kung.16b/output0.txt'
-APPROX='circuits/brent.kung.16b/output.txt'
-```
-
-2. Now we are ready to execute the simulation
-
-```python
-error = our_circuit.simulate(TB, "med", ORIGINAL, APPROX)
-print(error)
-```
-
-This should returns:
-
-```
-63.011
-```
-
-
+TODO: Add methods here
 
  # Files and Folders
 
@@ -348,16 +488,15 @@ Files and Folders description:
 
 | Name                | Description                                                  | Used   |
 | ------------------- | ------------------------------------------------------------ | ------ |
-| circuits            | Contains the rtl and testbench of some sample circuits.      |        |
 | prunning_algorithms | Folder containing pruning techniques implementations.        |        |
 | `inouts.py`         | Contains the implementation of `GetInputs` and `GetOutputs` example pruning methods. |        |
 | `probprun.py`       | Contains the implementation of a pseudo Probabilistic Pruning method. `GetOneNode` is a python generator. It will retrieve one node to delete each time it is called. |        |
 | templates           | Folder containing some libraries and scripts used for synthesis. |        |
 | `NanGate15nm.lib`   |                                                              |        |
 | `NanGate15nm.v`     |                                                              |        |
-| `synth.ys`          | Script for synthesize a circuit using yosys.                 |        |
+| `synth.ys`          | Script to synthesize a circuit using yosys.                 |        |
 | `__main__.py`       | It executes the tool using the arguments from the command line. **Still in progress**. | **No** |
-| `barcas.py`         | Is the Pruning Implementation using the InOuts techniques.   |        |
+| `barcas.py`         | Is the Pruning Implementation using the InOuts techniques.   | **NO** |
 | `circuit.py`        | Object that represents a circuit as a XML tree. Receives a rtl and a library in order to build the circuit and be able to simulate it. |        |
 | `circuiterror.py`   | Compares two outputs and computes different error metrics.   |        |
 | `demo.py`           | This file is a complete example of how the library should be used. |        |

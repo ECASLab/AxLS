@@ -1,7 +1,5 @@
-
 import re
 import xml.etree.cElementTree as ET
-import xml.dom.minidom
 
 
 class NetlistNode:

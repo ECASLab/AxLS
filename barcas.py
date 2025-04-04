@@ -1,8 +1,6 @@
-
 from copy import deepcopy
-import threading
 from circuit import Circuit
-from pruning_algorithms.axls import GetInputs, GetOutputs
+from pruning_algorithms.inouts import GetInputs, GetOutputs
 
 BASE    =   "circuits/ripple.carry.4b/"
 TOP     =   "RCA_3_0"

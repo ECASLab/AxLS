@@ -71,7 +71,7 @@ def GetSignificance(netlroot, node, overwrite=False):
             for child in children:
                 if overwrite:
                     significance+=int(GetSignificance(netlroot,child))
-                elif not 'significance' in child.keys():
+                elif 'significance' not in child.keys():
                     significance+=int(GetSignificance(netlroot,child))
                 else:
                     significance+=child.attrib['significance']
@@ -88,7 +88,7 @@ def LabelCircuit(netlroot,output_significances=[], overwrite=False):
     ----------
     netlroot: ElemntTree.Element
         root of the circuit tree object
-    
+
     overwrite: boolean
         Whether to overwrite existing labels
 

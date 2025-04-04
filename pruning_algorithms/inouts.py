@@ -18,14 +18,14 @@ def GetInputsAux(netl_root, node, constants, path):
         list of ElementTree.Element nodes that can be deleted
     '''
     node_inputs = node.findall("input")
-    node_inputs = [i for i in node_inputs if not i.attrib["wire"] in constants]
+    node_inputs = [i for i in node_inputs if i.attrib["wire"] not in constants]
     if (len(node_inputs) == 0):
         # all input wires are constants
-        if not node in path:
+        if node not in path:
             path.append(node)
         for output in node.findall("output"):
             o = output.attrib["wire"]
-            if (not o in constants):
+            if (o not in constants):
                 constants.append(o)
             children = netl_root.findall(f"./node/input[@wire='{o}']/..")
             for child in children:
@@ -90,13 +90,13 @@ def GetOutputsAux(netl_root, node, constants, path):
     children = netl_root.findall(
         "./node/input[@wire='" + node_output + "']/..")
 
-    children_to_keep = [c for c in children if not c.attrib["var"] in constants]
+    children_to_keep = [c for c in children if c.attrib["var"] not in constants]
 
     if (len(children_to_keep) == 0):
         #node.set ("delete", "yes")
-        if not node.attrib["var"] in constants:
+        if node.attrib["var"] not in constants:
             constants.append(node.attrib["var"])
-        if not node in path:
+        if node not in path:
             path.append(node)
 
         # keep going back

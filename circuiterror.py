@@ -1,8 +1,4 @@
-import math
-import os
 import numpy as np
-import collections
-
 
 def extract_numbers(filename):
     '''
@@ -50,6 +46,11 @@ def compute_error(metric, original, approximate):
     # Read modified output content
     approximate_output = extract_numbers(approximate)
 
+    original_len = len(original_output)
+    approx_len = len(approximate_output)
+
+    assert original_len == approx_len, f"The output of the original and the approximate simulations doesn't match: {original_len}!={approx_len}. Make sure both outputs are being generated correctly."
+
     # compute the error distance ED := |a - a'|
     error_distance = [abs(original_output[x] - approximate_output[x])
         for x in range(0,len(original_output))]
@@ -61,18 +62,6 @@ def compute_error(metric, original, approximate):
         0 if original_output[x] == 0 else error_distance[x]/original_output[x]
         for x in range(0,len(original_output))]
 
-
-    counter = collections.Counter(error_distance)
-
-    total = sum(counter.values())
-    keys = list(counter.keys())
-    values = list(counter.values())
-
-    pon_avg = 0
-    for x in range (0,len(counter.keys())):
-        per = round(values[x]/total,6)
-        pon_avg += (int(keys[x]) * per)
-
     # Error Rate:
     if (metric == "er"):
         return round(sum((error>0 for error in error_distance))/total,3)
@@ -83,17 +72,14 @@ def compute_error(metric, original, approximate):
         hamming_distance=[f'{hd:b}'.count('1') for hd in hamming_distance]
         return round(np.mean(hamming_distance),3)
 
-    # Normalized Error Distance MED := sum { ED(bj,b) * pj }
+    # Mean Error Distance MED := sum { ED(bj,b) * pj }
     if (metric == "med"):
-        return round(pon_avg,3)
+        mean_error = sum(error_distance) / len(error_distance)
+        return round(mean_error,3)
 
     # Worst Case Error
     elif (metric == "wce"):
-        return max(keys)
-
-    # Normalized Mean Error Distance
-    elif (metric == "wcre"):
-        return round(pon_avg/me,3)
+        return max(error_distance)
 
     # Mean Relative Error Distance
     elif (metric == "mred"):

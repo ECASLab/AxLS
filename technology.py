@@ -1,8 +1,5 @@
-
-import re
-from re import split, match, findall
+from re import match, findall
 import xml.etree.cElementTree as ET
-import xml.dom.minidom
 
 from pathlib import Path
 
@@ -45,10 +42,10 @@ class Technology:
             content = technology_file.read()
 
             # split the technology file in modules
-            modules = [f"module{l}module" for l in content.split('module')]
+            modules = [f"module{line}module" for line in content.split('module')]
 
             for module in modules:
-                if (not 'input' in module or not 'output' in module):
+                if ('input' not in module or 'output' not in module):
                     continue
                 elif ('primitive' in module):
                     continue
