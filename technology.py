@@ -1,8 +1,5 @@
-
-import re
-from re import split, match, findall
+from re import match, findall
 import xml.etree.cElementTree as ET
-import xml.dom.minidom
 
 from pathlib import Path
 

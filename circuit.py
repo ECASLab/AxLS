@@ -1,13 +1,9 @@
-
-import datetime
 import os
 import re
-import sys
 
-from graphviz import Digraph
 from os import path, remove, system, rename
 from random import randint
-from re import sub, findall
+from re import findall
 import xml.etree.ElementTree as ET
 
 from circuiterror import compute_error
@@ -15,7 +11,6 @@ from netlist import Netlist
 from synthesis import synthesis, resynthesis, ys_get_area
 from technology import Technology
 from utils import get_name, get_random
-import re
 import numpy as np
 
 
