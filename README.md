@@ -496,7 +496,7 @@ Files and Folders description:
 | `NanGate15nm.v`     |                                                              |        |
 | `synth.ys`          | Script to synthesize a circuit using yosys.                 |        |
 | `__main__.py`       | It executes the tool using the arguments from the command line. **Still in progress**. | **No** |
-| `barcas.py`         | Is the Pruning Implementation using the InOuts techniques.   |        |
+| `barcas.py`         | Is the Pruning Implementation using the InOuts techniques.   | **NO** |
 | `circuit.py`        | Object that represents a circuit as a XML tree. Receives a rtl and a library in order to build the circuit and be able to simulate it. |        |
 | `circuiterror.py`   | Compares two outputs and computes different error metrics.   |        |
 | `demo.py`           | This file is a complete example of how the library should be used. |        |
