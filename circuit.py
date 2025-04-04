@@ -110,7 +110,7 @@ class Circuit:
             name of the node to be deleted
         '''
         node_to_delete = self.netl_root.find(f"./node[@var='{node_var}']")
-        if (node_to_delete != None):
+        if (node_to_delete is not None):
             node_to_delete.set("delete", "yes")
         else:
             print(f"Node {node_var} not found")
@@ -125,7 +125,7 @@ class Circuit:
             name of the node to be preserved
         '''
         node_to_delete = self.netl_root.find(f"./node[@var='{node_var}']")
-        if (node_to_delete != None):
+        if (node_to_delete is not None):
             node_to_delete.attrib.pop("delete")
         else:
             print(f"Node {node_var} not found")
@@ -438,28 +438,28 @@ class Circuit:
                     my_saif_cell_name = "_" + saif_cell_name[1:] + "_"
                     cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
 
-                    if (cells != None):
-                    	cells.set('t0',saif_cell_t0)
-                    	cells.set('t1',saif_cell_t1)
-                    	cells.set('tc',saif_cell_tc)
+                    if (cells is not None):
+                        cells.set('t0',saif_cell_t0)
+                        cells.set('t1',saif_cell_t1)
+                        cells.set('tc',saif_cell_tc)
 
                 elif ((saif_cell_name[0],saif_cell_name[-1]) == ("_","_")): #Yosys 19.
                     my_saif_cell_name = "_" + saif_cell_name[1:-1] + "_"
                     cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
 
-                    if (cells != None):
-                    	cells.set('t0',saif_cell_t0)
-                    	cells.set('t1',saif_cell_t1)
-                    	cells.set('tc',saif_cell_tc)
+                    if (cells is not None):
+                        cells.set('t0',saif_cell_t0)
+                        cells.set('t1',saif_cell_t1)
+                        cells.set('tc',saif_cell_tc)
 
                 elif (saif_cell_name.replace('\\','') in self.outputs):
                     my_saif_cell_name = saif_cell_name.replace('\\','')
                     cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
 
-                    if (cells != None):
-                    	cells.set('t0',saif_cell_t0)
-                    	cells.set('t1',saif_cell_t1)
-                    	cells.set('tc',saif_cell_tc)
+                    if (cells is not None):
+                        cells.set('t0',saif_cell_t0)
+                        cells.set('t1',saif_cell_t1)
+                        cells.set('tc',saif_cell_tc)
 
         return saif
     def exact_output (self, testbench):
@@ -611,7 +611,6 @@ class Circuit:
         '''
 
 
-        dataset=''
         data=[]
 
         format=kwargs['format'] if ('format' in kwargs) else 'x'
@@ -665,7 +664,7 @@ class Circuit:
         '''
 
         '''Check for existing dataset'''
-        if os.path.exists(f'{self.output_folder}/dataset') and iterations==None:
+        if os.path.exists(f'{self.output_folder}/dataset') and iterations is None:
             file=open(f'{self.output_folder}/dataset', 'r')
             iterations=len(file.read().splitlines())
             file.close()
