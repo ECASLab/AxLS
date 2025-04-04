@@ -48,6 +48,11 @@ def compute_error(metric, original, approximate):
     # Read modified output content
     approximate_output = extract_numbers(approximate)
 
+    original_len = len(original_output)
+    approx_len = len(approximate_output)
+
+    assert original_len == approx_len, f"The output of the original and the approximate simulations doesn't match: {original_len}!={approx_len}. Make sure both outputs are being generated correctly."
+
     # compute the error distance ED := |a - a'|
     error_distance = [abs(original_output[x] - approximate_output[x])
         for x in range(0,len(original_output))]
