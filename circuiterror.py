@@ -89,10 +89,6 @@ def compute_error(metric, original, approximate):
     elif (metric == "wce"):
         return max(keys)
 
-    # Normalized Mean Error Distance
-    elif (metric == "wcre"):
-        return round(pon_avg/me,3)
-
     # Mean Relative Error Distance
     elif (metric == "mred"):
         mred = sum(relative_error_distance)/len(relative_error_distance)
