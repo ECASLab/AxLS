@@ -419,8 +419,7 @@ class Circuit:
         with open(saif, 'r') as technology_file:
             content = technology_file.read()
 
-            expreg = r'\((.+)\n.*\(T0 ([0-9]+)\).*' + \
-                '\(T1 ([0-9]+)\).*\n.*\(TC ([0-9]+)\).*\n.*\)'
+            expreg = r'\((.+)\n.*\(T0 ([0-9]+)\).*\(T1 ([0-9]+)\).*\n.*\(TC ([0-9]+)\).*\n.*\)'
             saif_cells = findall(expreg, content)
 
             for saif_cell in saif_cells:
@@ -635,7 +634,7 @@ class Circuit:
             format=f'0{bitwidth}b' if format=='b' else format #ensure right number of bits if binary
             data.append([f'{i:{format}}' for i in rows])
         data=list(zip(*data)) # Transpose data see: https://stackoverflow.com/questions/10169919/python-matrix-transpose-and-zip
-        file=np.savetxt(f'{self.output_folder}/dataset',data,fmt='%s')
+        np.savetxt(f'{self.output_folder}/dataset',data,fmt='%s')
 
         return f'{self.output_folder}/dataset'
 
