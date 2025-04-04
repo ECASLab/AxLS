@@ -509,19 +509,20 @@ class Circuit:
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
         kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
-        result = system(kon)
+        _result = system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        result = system(f"cd \"{out}\"; ./{top}")
+        _result = system(f"cd \"{out}\"; ./{top}")
 
         os.chdir(cwd)
 
         remove(rtl)
         remove(f"{out}/{top}")
-        rename(out + "/output.txt", out + "/output0.txt")
 
+        output = f"{out}/output0.txt"
+        rename(out + "/output.txt", output)
 
-        return f'{out}/output0.txt'
+        return output
 
     def simulate (self, testbench, metric, orig_output, new_output):
         '''
