@@ -173,7 +173,10 @@ class Circuit:
 
         some_children_not_deleted = len(node_children_to_be_deleted) < len(node_children)
 
-        return connects_to_output or some_children_not_deleted
+        node_has_outputs = connects_to_output or some_children_not_deleted
+        node_can_be_deleted = not node_has_outputs
+
+        return node_can_be_deleted
 
 
     def node_to_constant(self, node):
@@ -569,9 +572,6 @@ class Circuit:
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
         system(f"cd \"{out}\"; ./{top}")
         os.chdir(cwd)
-
-        remove(rtl)
-        remove(f"{out}/{top}")
 
         rename(out + "/output.txt", new_output)
 
