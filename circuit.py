@@ -1,6 +1,7 @@
 import os
 import re
 
+from graphviz import Digraph
 from os import path, remove, system, rename
 from random import randint
 from re import findall
@@ -19,7 +20,7 @@ import numpy as np
 
 class Circuit:
     '''
-    Representation of a sintetized rtl circuit
+    Representation of a synthesized rtl circuit
 
     Attributes
     -----------
@@ -28,9 +29,9 @@ class Circuit:
     tech_file : str
         name of the technology library used to map the circuit
     topmodule : str
-        name of the circuit we want to sintetize
+        name of the circuit module that we want to synthesize
     netl_file : str
-        path of the sintetized netlist file
+        path to the synthesized netlist file
     tech_root : ElementTree.Element
         references to the root element of the Technology Library Cells tree
     '''
@@ -340,7 +341,8 @@ class Circuit:
 
     def show (self, show_deletes=False, view=True):
         '''
-        Displays the circuit as a graph
+        Displays the circuit as a graph. Requires the graphviz python
+        package to be installed.
 
         Parameters
         ----------
@@ -579,6 +581,8 @@ class Circuit:
 
         Generates a dataset of randomly distributed data for each input of the circuit.
         By Default, data is written in columns of n-bit hexadecimal numbers, being each column an input and n its bitwidth.
+        Will create a `dataset` file in the same folder where the original
+        circuit RTL is located.
 
         Parameters
         ----------
@@ -641,7 +645,11 @@ class Circuit:
 
     def write_tb(self, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False):
         '''
-        Writes a basic testbench for the circuit. See template in ./templates/testbench
+        Writes a basic testbench for the circuit.
+
+        Will create a <topmodule>_tb.v file in the same folder where the
+        original circuit RTL is located.
+
         Parameters
         ----------
         iterations (optional): int
