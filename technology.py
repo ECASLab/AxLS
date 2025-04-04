@@ -42,10 +42,10 @@ class Technology:
             content = technology_file.read()
 
             # split the technology file in modules
-            modules = [f"module{l}module" for l in content.split('module')]
+            modules = [f"module{line}module" for line in content.split('module')]
 
             for module in modules:
-                if (not 'input' in module or not 'output' in module):
+                if ('input' not in module or 'output' not in module):
                     continue
                 elif ('primitive' in module):
                     continue
