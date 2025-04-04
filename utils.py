@@ -9,7 +9,7 @@ from random import uniform, gauss, triangular
 def get_name(length):
     timestamp = datetime.now().strftime("%H%M%S")
     unique = ""
-    for x in range(length):
+    for _ in range(length):
         unique += random.choice(string.ascii_letters)
     return f"{timestamp}{unique}"
 
@@ -46,19 +46,19 @@ def get_random(bits: int, distribution='uniform', samples=1, **kwargs):
 
     '''
     '''Pasing kwargs'''
-    if not 'low_limit' in kwargs:
+    if 'low_limit' not in kwargs:
         low_limit=0 #Lower threshold for generated numbers
     else:
         low_limit=np.min([kwargs['low_limit'],2**bits])
-    if not 'high_limit' in kwargs:
+    if 'high_limit' not in kwargs:
         high_limit=2**bits #Upper threshold for the generated data
     else:
         high_limit=np.min([kwargs['high_limit'],2**bits])
-    if not 'median' in kwargs:
+    if 'median' not in kwargs:
         median=(high_limit+low_limit)/2 #by default is centered at the mean
     else:
         median=kwargs['median']
-    if not 'variance' in kwargs:
+    if 'variance' not in kwargs:
         variance=1
     else:
         variance=kwargs['variance']
@@ -66,13 +66,14 @@ def get_random(bits: int, distribution='uniform', samples=1, **kwargs):
     '''Distributions case'''
     data=[]
     if distribution in {'uniform', 'rectangular'}:
-        data=(int(math.floor(uniform(low_limit,high_limit))) for i in range(samples))
+        data=(int(math.floor(uniform(low_limit,high_limit))) for _ in range(samples))
     elif distribution=='triangular':
-        data=(int(math.floor(triangular(low_limit,high_limit,mode=median))) for i in range(samples))
+        data=(int(math.floor(triangular(low_limit,high_limit,mode=median))) for _ in range(samples))
     elif distribution in {'normal', 'gaussian'}:
         while len(data)<samples:
-            i=int(math.floor(gauss(median,variance)))
-            if low_limit<=i<=high_limit: data.append(i)
+            random_value=int(math.floor(gauss(median,variance)))
+            if low_limit<=random_value<=high_limit:
+                data.append(random_value)
     else:
         raise ValueError(f'{distribution} is not a valid distribution name')
 
