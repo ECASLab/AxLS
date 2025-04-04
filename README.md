@@ -52,17 +52,111 @@ make
 sudo make install
 ```
 
+## Cloning benchmarks
 
-
-## Using AxLS
-
-### Cloning benchmarks
-
-First, you'll need to clone the benchmarks from the [ALS-benchmark-circuits](https://github.com/ECASLab/ALS-benchmark-circuits) repo.
+You'll need to clone the benchmarks from the [ALS-benchmark-circuits](https://github.com/ECASLab/ALS-benchmark-circuits) repo.
 
 ```sh
 git clone https://github.com/ECASLab/ALS-benchmark-circuits --depth=1
 ```
+
+## Executing Demo
+
+After cloning the benchmarks and installing the required dependencies you can
+execute the `demo.py`.
+
+Note that the demo requires the python `graphviz` package because it renders
+images of the circuit graph. You can skip this by modifying the file and setting
+the `CREATE_IMAGE` constant to `False.
+
+Example installation with `pip`:
+```sh
+pip install graphviz
+```
+
+Demo execution:
+```sh
+python demo.py
+```
+
+#### Sample output
+
+The demo prints a lot of output, including
+
+- Progress reports of simulations:
+
+```
+-- Progress:       99995/100000 --
+-- Progress:       99996/100000 --
+-- Progress:       99997/100000 --
+-- Progress:       99998/100000 --
+-- Progress:       99999/100000 --
+-- Progress:      100000/100000 --
+```
+
+- The circuit's XML:
+```
+Showing circuit XML
+---------------------
+b'<root><node name="NAND2_X1" var="_067_"><input name="A1" wire="Y[15]" /><input
+/* Skipping most of the output */
+<output var="S[16]" /></circuitoutputs><assignments /></root>'
+---------------------
+Press any key to continue...
+```
+
+- The circuit graph representation as an image, including the original circuit and with a node set for deletion.
+
+- Some circuit statistics:
+
+```
+Circuit inputs...
+['X[0]', 'X[1]', 'X[2]', 'X[3]', 'X[4]', 'X[5]', 'X[6]', 'X[7]', 'X[8]', 'X[9]
+', 'X[10]', 'X[11]', 'X[12]', 'X[13]', 'X[14]', 'X[15]', 'Y[0]', 'Y[1]', 'Y[2]
+', 'Y[3]', 'Y[4]', 'Y[5]', 'Y[6]', 'Y[7]', 'Y[8]', 'Y[9]', 'Y[10]', 'Y[11]', '
+Y[12]', 'Y[13]', 'Y[14]', 'Y[15]']
+Circuit outputs...
+['S[0]', 'S[1]', 'S[2]', 'S[3]', 'S[4]', 'S[5]', 'S[6]', 'S[7]', 'S[8]', 'S[9]
+', 'S[10]', 'S[11]', 'S[12]', 'S[13]', 'S[14]', 'S[15]', 'S[16]']
+Root of XML tree:  <Element 'root' at 0x724c1a30ab60>
+```
+
+- Sample of what the InOuts method would suggest:
+
+```
+Nodes to delete if input 0 is constant
+['_109_', '_129_']
+Nodes to delete if input 3 is constant
+['_109_', '_129_', '_108_', '_110_', '_112_', '_111_', '_150_', '_106_', '_107_
+', '_113_', '_114_', '_149_', '_115_', '_104_', '_105_', '_116_', '_147_', '_14
+8_']
+Nodes to delete if output 0 is constant
+['_129_']
+Nodes to delete if output 5 is constant
+['_145_', '_144_']
+```
+
+- Sample of what the Pseudo Probrun method would suggest:
+```
+ProbPrun suggest delete the node _068_ because is 0 75% of the time
+_069_ is 0 75% of the time
+_070_ is 1 75% of the time
+_073_ is 1 75% of the time
+_075_ is 0 75% of the time
+_076_ is 1 75% of the time
+_079_ is 1 75% of the time
+_085_ is 1 75% of the time
+_086_ is 0 75% of the time
+_093_ is 0 75% of the time
+_096_ is 1 75% of the time
+```
+
+- Final error of approximate circuit:
+```
+Mean Error Distance of approximate circuit with node _101_ deleted: 3.979
+```
+
+## Using AxLS
 
 ### Parsing a netlist
 
