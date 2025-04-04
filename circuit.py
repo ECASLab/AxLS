@@ -137,11 +137,15 @@ class Circuit:
 
     # this are some auxiliary functions for write_to_disk
 
-    def is_node_deprecable(self, node):
+    def is_node_deletable(self, node):
         '''
-        Check if a node can be deleted if it does not has children or all
-        their children will be deleted too. If there are still some children
-        the wire is going to be assigned to a constant
+        Returns true if a node can be deleted, returns false if the node should
+        be assigned a constant instead.
+
+        A node can be deleted if all its children nodes will be deleted as
+        well. If a node has children nodes or connects directly to an output of
+        the circuit, then the funcction will return false and the node should
+        be replaced with a constant.
 
         Parameters
         ----------
@@ -151,7 +155,7 @@ class Circuit:
         Returns
         -------
         boolean
-            true if the node is deprecable
+            true if the node can be deleted
         '''
 
         root = self.netl_root
@@ -161,15 +165,19 @@ class Circuit:
 
         # children of node
         re = f"./node/input[@wire='{wire}']/.."
-        just_children = root.findall(re)
-
-        # children of node that had to be deleted too
-        re = f"./node[@delete='yes']/input[@wire='{wire}']/.."
         node_children = root.findall(re)
 
-        # if there are no children or all the children will be deleted too,
-        # the node is deprecable and the wire needs to be ASSIGNED
-        return len(just_children)==0 or len(node_children) < len(just_children)
+        # children of node that had to be deleted
+        re = f"./node[@delete='yes']/input[@wire='{wire}']/.."
+        node_children_to_be_deleted = root.findall(re)
+
+        # If no nodes have this node as an input, it means that this node must
+        # connect directly to a circuit output.
+        connects_to_output = len(node_children) == 0
+
+        some_children_not_deleted = len(node_children_to_be_deleted) < len(node_children)
+
+        return connects_to_output or some_children_not_deleted
 
 
     def node_to_constant(self, node):
@@ -241,7 +249,7 @@ class Circuit:
     def get_wires_to_be_deleted(self):
         '''
         Returns two lists with the wires that will be deleted completely and
-        another list with the wires that will be grounded
+        another list with the wires that should be assigned a constant.
 
         Returns
         -------
@@ -254,15 +262,15 @@ class Circuit:
         nodes_to_delete = self.netl_root.findall("./node[@delete='yes']")
         for node in nodes_to_delete:
             node_output = node.findall("output")[0]
-            if self.is_node_deprecable(node):
-                # the wire need to be ASSIGNED
-                wire = node_output.attrib["wire"]
-                constant = self.node_to_constant(node)
-                wires_to_be_assigned[wire] = constant
-            else:
+            if self.is_node_deletable(node):
                 # the wire could be DELETED
                 wire = node_output.attrib["wire"]
                 wires_to_be_deleted.append(wire)
+            else:
+                # the wire needs to be ASSIGNED
+                wire = node_output.attrib["wire"]
+                constant = self.node_to_constant(node)
+                wires_to_be_assigned[wire] = constant
         return wires_to_be_deleted, wires_to_be_assigned
 
 
