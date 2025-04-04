@@ -461,7 +461,8 @@ class Circuit:
                         cells.set('tc',saif_cell_tc)
 
         return saif
-    def exact_output (self, testbench):
+
+    def exact_output (self, testbench, output_file):
         '''
         Simulates the actual circuit tree (with deletions)
         Creates an executable using icarus, end then execute it to obtain the
@@ -474,17 +475,10 @@ class Circuit:
         metric : string
             equation to compute the error
             options med, wce, wcre,mred, msed
-        orig_output : string
-            path to the original results of the circuit
-        new_output : string
-            path to the new results file created after the simulation
-        clean : bool
-            if true, deletes all the generated files
-
-        Returns
-        -------
-        float
-            error of the current circuit tree
+        output_file : string
+            Path to the output file where simulation results will be written.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
         '''
 
 
@@ -513,12 +507,11 @@ class Circuit:
         remove(rtl)
         remove(f"{out}/{top}")
 
-        output = f"{out}/output0.txt"
-        rename(out + "/output.txt", output)
+        rename(out + "/output.txt", output_file)
 
-        return output
+        return
 
-    def simulate (self, testbench, metric, orig_output, new_output):
+    def simulate_and_compute_error (self, testbench, metric, exact_output, new_output):
         '''
         Simulates the actual circuit tree (with deletions)
         Creates an executable using icarus, end then execute it to obtain the
@@ -531,10 +524,13 @@ class Circuit:
         metric : string
             equation to compute the error
             options med, wce, wcre,mred, msed
-        orig_output : string
-            path to the original results of the circuit
+        exact_output : string
+            Path to the output file of the original exact circuit to compare
+            against. This file can be created with the `exact_output` method.
         new_output : string
-            path to the new results file created after the simulation
+            Path to the output file where simulation results will be written.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
         clean : bool
             if true, deletes all the generated files
 
@@ -566,7 +562,12 @@ class Circuit:
         system(f"cd \"{out}\"; ./{top}")
         os.chdir(cwd)
 
-        error = compute_error(metric, orig_output, new_output)
+        remove(rtl)
+        remove(f"{out}/{top}")
+
+        rename(out + "/output.txt", new_output)
+
+        error = compute_error(metric, exact_output, new_output)
 
         remove(rtl)
         remove(f"{out}/{top}")

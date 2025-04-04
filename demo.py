@@ -100,6 +100,6 @@ ORIGINAL='circuits/brent.kung.16b/output0.txt'
 APPROX='circuits/brent.kung.16b/output.txt'
 
 print ("Simulating...")
-error = our_circuit.simulate(TB, "med", ORIGINAL, APPROX)
+error = our_circuit.simulate_and_compute_error(TB, "med", ORIGINAL, APPROX)
 print ("Simulation finished...")
 print(error)

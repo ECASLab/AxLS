@@ -339,7 +339,7 @@ APPROX='circuits/brent.kung.16b/output.txt'
 2. Now we are ready to execute the simulation
 
 ```python
-error = our_circuit.simulate(TB, "med", ORIGINAL, APPROX)
+error = our_circuit.simulate_and_compute_error(TB, "med", ORIGINAL, APPROX)
 print(error)
 ```
 
