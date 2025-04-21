@@ -44,7 +44,7 @@ def synthesis (rtl, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    result = os.system (f'yosys synth.ys;')
+    os.system ('yosys synth.ys;')
 
     # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
 
@@ -90,7 +90,7 @@ def resynthesis(netlist, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    result = os.system ('yosys resynth.ys;')
+    os.system ('yosys resynth.ys;')
 
     # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
 
@@ -123,10 +123,10 @@ def ys_get_area(netlist, tech, topmodule):
 
     yosys_log_path = os.path.dirname(netlist) + "/yosys_log.txt"
 
-    file_text = file_text.replace("[[RTLFILENAME]]", netlist)
+    file_text = file_text.replace("[[RTLFILENAME]]", f'"{netlist}"')
+    file_text = file_text.replace("[[TECHNOLOGY]]", f'"{current_dir}/templates/{tech}.v"')
     file_text = file_text.replace("[[TOPMODULE]]", topmodule)
-    file_text = file_text.replace("[[TECHNOLOGY]]", f'{current_dir}/templates/{tech}.v')
-    file_text = file_text.replace("[[LIBRARY]]", f"{current_dir}/templates/{tech}.lib")
+    file_text = file_text.replace("[[LIBRARY]]", f'"{current_dir}/templates/{tech}.lib"')
 
     file = open('stat.ys',"w")
     file.write(file_text)
@@ -134,7 +134,7 @@ def ys_get_area(netlist, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    result = os.system (f'yosys stat.ys -l {yosys_log_path};')
+    os.system (f'yosys stat.ys -l \"{yosys_log_path}\"')
 
     # - - - - - - - - - - - - - - - Parse Area - - - - - - - - - - - - - - -
 

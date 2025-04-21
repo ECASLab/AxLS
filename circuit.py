@@ -1,13 +1,10 @@
-
-import datetime
 import os
 import re
-import sys
 
 from graphviz import Digraph
 from os import path, remove, system, rename
 from random import randint
-from re import sub, findall
+from re import findall
 import xml.etree.ElementTree as ET
 
 from circuiterror import compute_error
@@ -15,7 +12,6 @@ from netlist import Netlist
 from synthesis import synthesis, resynthesis, ys_get_area
 from technology import Technology
 from utils import get_name, get_random
-import re
 import numpy as np
 
 
@@ -24,7 +20,7 @@ import numpy as np
 
 class Circuit:
     '''
-    Representation of a sintetized rtl circuit
+    Representation of a synthesized rtl circuit
 
     Attributes
     -----------
@@ -33,9 +29,9 @@ class Circuit:
     tech_file : str
         name of the technology library used to map the circuit
     topmodule : str
-        name of the circuit we want to sintetize
+        name of the circuit module that we want to synthesize
     netl_file : str
-        path of the sintetized netlist file
+        path to the synthesized netlist file
     tech_root : ElementTree.Element
         references to the root element of the Technology Library Cells tree
     '''
@@ -115,7 +111,7 @@ class Circuit:
             name of the node to be deleted
         '''
         node_to_delete = self.netl_root.find(f"./node[@var='{node_var}']")
-        if (node_to_delete != None):
+        if (node_to_delete is not None):
             node_to_delete.set("delete", "yes")
         else:
             print(f"Node {node_var} not found")
@@ -130,18 +126,22 @@ class Circuit:
             name of the node to be preserved
         '''
         node_to_delete = self.netl_root.find(f"./node[@var='{node_var}']")
-        if (node_to_delete != None):
+        if (node_to_delete is not None):
             node_to_delete.attrib.pop("delete")
         else:
             print(f"Node {node_var} not found")
 
     # this are some auxiliary functions for write_to_disk
 
-    def is_node_deprecable(self, node):
+    def is_node_deletable(self, node):
         '''
-        Check if a node can be deleted if it does not has children or all
-        their children will be deleted too. If there are still some children
-        the wire is going to be assigned to a constant
+        Returns true if a node can be deleted, returns false if the node should
+        be assigned a constant instead.
+
+        A node can be deleted if all its children nodes will be deleted as
+        well. If a node has children nodes or connects directly to an output of
+        the circuit, then the funcction will return false and the node should
+        be replaced with a constant.
 
         Parameters
         ----------
@@ -151,7 +151,7 @@ class Circuit:
         Returns
         -------
         boolean
-            true if the node is deprecable
+            true if the node can be deleted
         '''
 
         root = self.netl_root
@@ -161,15 +161,22 @@ class Circuit:
 
         # children of node
         re = f"./node/input[@wire='{wire}']/.."
-        just_children = root.findall(re)
-
-        # children of node that had to be deleted too
-        re = f"./node[@delete='yes']/input[@wire='{wire}']/.."
         node_children = root.findall(re)
 
-        # if there are no children or all the children will be deleted too,
-        # the node is deprecable and the wire needs to be ASSIGNED
-        return len(just_children)==0 or len(node_children) < len(just_children)
+        # children of node that had to be deleted
+        re = f"./node[@delete='yes']/input[@wire='{wire}']/.."
+        node_children_to_be_deleted = root.findall(re)
+
+        # If no nodes have this node as an input, it means that this node must
+        # connect directly to a circuit output.
+        connects_to_output = len(node_children) == 0
+
+        some_children_not_deleted = len(node_children_to_be_deleted) < len(node_children)
+
+        node_has_outputs = connects_to_output or some_children_not_deleted
+        node_can_be_deleted = not node_has_outputs
+
+        return node_can_be_deleted
 
 
     def node_to_constant(self, node):
@@ -208,8 +215,8 @@ class Circuit:
         wires = list(set([output.attrib["wire"] for output in outputs]))
 
         # make sure there are not any inputsoutputs in wires
-        wires = [wire for wire in wires if not wire in self.inputs]
-        wires = [wire for wire in wires if not wire in self.outputs]
+        wires = [wire for wire in wires if wire not in self.inputs]
+        wires = [wire for wire in wires if wire not in self.outputs]
         return wires
 
 
@@ -241,7 +248,7 @@ class Circuit:
     def get_wires_to_be_deleted(self):
         '''
         Returns two lists with the wires that will be deleted completely and
-        another list with the wires that will be grounded
+        another list with the wires that should be assigned a constant.
 
         Returns
         -------
@@ -254,15 +261,15 @@ class Circuit:
         nodes_to_delete = self.netl_root.findall("./node[@delete='yes']")
         for node in nodes_to_delete:
             node_output = node.findall("output")[0]
-            if self.is_node_deprecable(node):
-                # the wire need to be ASSIGNED
-                wire = node_output.attrib["wire"]
-                constant = self.node_to_constant(node)
-                wires_to_be_assigned[wire] = constant
-            else:
+            if self.is_node_deletable(node):
                 # the wire could be DELETED
                 wire = node_output.attrib["wire"]
                 wires_to_be_deleted.append(wire)
+            else:
+                # the wire needs to be ASSIGNED
+                wire = node_output.attrib["wire"]
+                constant = self.node_to_constant(node)
+                wires_to_be_assigned[wire] = constant
         return wires_to_be_deleted, wires_to_be_assigned
 
 
@@ -296,27 +303,25 @@ class Circuit:
             header = "/* Generated by poisonoak */"
             writeln(netlist_file, header)
 
-            inputs = ','.join(set([i.split('[')[0] for i in self.inputs]))
-            outputs = ','.join(set([o.split('[')[0] for o in self.outputs]))
             params = self.raw_parameters
             module = f"module {self.topmodule} ({params});"
             writeln(netlist_file, module)
 
             for wire in self.get_circuit_wires():
-                if not wire in to_be_deleted:
+                if wire not in to_be_deleted:
                     writeln(netlist_file, f"\twire {wire};")
             used_outputs=[]
             for output in self.raw_outputs:
-                if not (output in used_outputs):
+                if output not in used_outputs:
                     writeln(netlist_file, "\t" + output)
                     used_outputs.append(output)
             for output in self.raw_inputs:
-                if not (output in used_outputs):
+                if output not in used_outputs:
                     writeln(netlist_file, "\t" + output)
                     used_outputs.append(output)
 
             for node_var in self.get_circuit_nodes():
-                if not node_var in nodes_to_delete:
+                if node_var not in nodes_to_delete:
                     node = self.get_node(node_var)
                     instance = f"\t{node.attrib['name']} {node.attrib['var']}"
                     inputs = format_io(node, "in")
@@ -337,14 +342,23 @@ class Circuit:
         return filepath
 
 
-    def show (self, show_deletes=False, view=True):
+    def show (self, filename=None, show_deletes=False, view=True, format="png"):
         '''
-        Displays the circuit as a graph
+        Renders the circuit as an image of the graph.
+        Requires the graphviz python package to be installed.
 
         Parameters
         ----------
-        show_deletes : boolean
+        filename: str (defaults to the circuit's name)
+            Name of the png image to render, it shouldn't include the
+            extension.
+            For example filename="circuit" results in a file "circuit.png"
+        show_deletes : boolean (defaults to False)
             nodes to be deleted will be colored in red
+        view: boolean (defaults to True)
+            if True, opens the image automatically
+        format: str (defaults to "png")
+            The format to create render the image with
         '''
         root = self.netl_root
         f = Digraph(self.topmodule)
@@ -399,9 +413,7 @@ class Circuit:
                     end = n.attrib["var"]
                     f.edge(start, end)
 
-        name = f"{self.output_folder}{path.sep}{self.topmodule}"
-        f.render(filename=name, view=view)
-        return(f.render(filename=name, format='png'))
+        return(f.render(filename=filename, format=format, view=view, cleanup=True))
 
 
 
@@ -418,8 +430,7 @@ class Circuit:
         with open(saif, 'r') as technology_file:
             content = technology_file.read()
 
-            expreg = r'\((.+)\n.*\(T0 ([0-9]+)\).*' + \
-                '\(T1 ([0-9]+)\).*\n.*\(TC ([0-9]+)\).*\n.*\)'
+            expreg = r'\((.+)\n.*\(T0 ([0-9]+)\).*\(T1 ([0-9]+)\).*\n.*\(TC ([0-9]+)\).*\n.*\)'
             saif_cells = findall(expreg, content)
 
             for saif_cell in saif_cells:
@@ -437,31 +448,32 @@ class Circuit:
                     my_saif_cell_name = "_" + saif_cell_name[1:] + "_"
                     cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
 
-                    if (cells != None):
-                    	cells.set('t0',saif_cell_t0)
-                    	cells.set('t1',saif_cell_t1)
-                    	cells.set('tc',saif_cell_tc)
+                    if (cells is not None):
+                        cells.set('t0',saif_cell_t0)
+                        cells.set('t1',saif_cell_t1)
+                        cells.set('tc',saif_cell_tc)
 
                 elif ((saif_cell_name[0],saif_cell_name[-1]) == ("_","_")): #Yosys 19.
                     my_saif_cell_name = "_" + saif_cell_name[1:-1] + "_"
                     cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
 
-                    if (cells != None):
-                    	cells.set('t0',saif_cell_t0)
-                    	cells.set('t1',saif_cell_t1)
-                    	cells.set('tc',saif_cell_tc)
+                    if (cells is not None):
+                        cells.set('t0',saif_cell_t0)
+                        cells.set('t1',saif_cell_t1)
+                        cells.set('tc',saif_cell_tc)
 
                 elif (saif_cell_name.replace('\\','') in self.outputs):
                     my_saif_cell_name = saif_cell_name.replace('\\','')
                     cells = self.netl_root.find(f"./node/output[@wire='{my_saif_cell_name}']")
 
-                    if (cells != None):
-                    	cells.set('t0',saif_cell_t0)
-                    	cells.set('t1',saif_cell_t1)
-                    	cells.set('tc',saif_cell_tc)
+                    if (cells is not None):
+                        cells.set('t0',saif_cell_t0)
+                        cells.set('t1',saif_cell_t1)
+                        cells.set('tc',saif_cell_tc)
 
         return saif
-    def exact_output (self, testbench):
+
+    def exact_output (self, testbench, output_file):
         '''
         Simulates the actual circuit tree (with deletions)
         Creates an executable using icarus, end then execute it to obtain the
@@ -474,17 +486,10 @@ class Circuit:
         metric : string
             equation to compute the error
             options med, wce, wcre,mred, msed
-        orig_output : string
-            path to the original results of the circuit
-        new_output : string
-            path to the new results file created after the simulation
-        clean : bool
-            if true, deletes all the generated files
-
-        Returns
-        -------
-        float
-            error of the current circuit tree
+        output_file : string
+            Path to the output file where simulation results will be written.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
         '''
 
 
@@ -503,21 +508,21 @@ class Circuit:
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
         kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
-        result = system(kon)
+        system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        result = system(f"cd \"{out}\"; ./{top}")
+        system(f"cd \"{out}\"; ./{top}")
 
         os.chdir(cwd)
 
         remove(rtl)
         remove(f"{out}/{top}")
-        rename(out + "/output.txt", out + "/output0.txt")
 
+        rename(out + "/output.txt", output_file)
 
-        return f'{out}/output0.txt'
+        return
 
-    def simulate (self, testbench, metric, orig_output, new_output):
+    def simulate_and_compute_error (self, testbench, metric, exact_output, new_output):
         '''
         Simulates the actual circuit tree (with deletions)
         Creates an executable using icarus, end then execute it to obtain the
@@ -530,10 +535,13 @@ class Circuit:
         metric : string
             equation to compute the error
             options med, wce, wcre,mred, msed
-        orig_output : string
-            path to the original results of the circuit
+        exact_output : string
+            Path to the output file of the original exact circuit to compare
+            against. This file can be created with the `exact_output` method.
         new_output : string
-            path to the new results file created after the simulation
+            Path to the output file where simulation results will be written.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
         clean : bool
             if true, deletes all the generated files
 
@@ -559,28 +567,35 @@ class Circuit:
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
         kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
-        #print(kon)
-        result = system(kon)
+        system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        result = system(f"cd \"{out}\"; ./{top}")
+        system(f"cd \"{out}\"; ./{top}")
         os.chdir(cwd)
 
-        error = compute_error(metric, orig_output, new_output)
+        rename(out + "/output.txt", new_output)
+
+        error = compute_error(metric, exact_output, new_output)
 
         remove(rtl)
         remove(f"{out}/{top}")
 
         return error
 
-    def generate_dataset(self, samples, distribution='uniform', **kwargs):
+    def generate_dataset(self, filename, samples, distribution='uniform', **kwargs):
         '''
 
         Generates a dataset of randomly distributed data for each input of the circuit.
         By Default, data is written in columns of n-bit hexadecimal numbers, being each column an input and n its bitwidth.
+        Will create a `dataset` file in the same folder where the original
+        circuit RTL is located.
 
         Parameters
         ----------
+        filename: string
+            Path to the output dataset file.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
         samples: int
             How many rows of data to generate.
         distribution: string
@@ -604,13 +619,9 @@ class Circuit:
                 d for decimal
                 b for binary
                 o for octal
-        Returns
-        -------
-            path to the generated dataset
         '''
 
 
-        dataset=''
         data=[]
 
         format=kwargs['format'] if ('format' in kwargs) else 'x'
@@ -635,15 +646,22 @@ class Circuit:
             format=f'0{bitwidth}b' if format=='b' else format #ensure right number of bits if binary
             data.append([f'{i:{format}}' for i in rows])
         data=list(zip(*data)) # Transpose data see: https://stackoverflow.com/questions/10169919/python-matrix-transpose-and-zip
-        file=np.savetxt(f'{self.output_folder}/dataset',data,fmt='%s')
+        np.savetxt(filename,data,fmt='%s')
 
-        return f'{self.output_folder}/dataset'
+        return
 
-    def write_tb(self, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False):
+    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False):
         '''
-        Writes a basic testbench for the circuit. See template in ./templates/testbench
+        Writes a basic testbench for the circuit.
+
         Parameters
         ----------
+        filename: string
+            Path to the output testbench file.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
+        dataset_file: string
+           Path to the dataset file which can be created with `generate_dataset`.
         iterations (optional): int
             How many iterations to do (how many inputs pass to the circuit, and outputs write to file).
             Requires dataset to be generated, by default it takes the number of rows.
@@ -664,10 +682,13 @@ class Circuit:
         '''
 
         '''Check for existing dataset'''
-        if os.path.exists(f'{self.output_folder}/dataset') and iterations==None:
-            file=open(f'{self.output_folder}/dataset', 'r')
-            iterations=len(file.read().splitlines())
-            file.close()
+        if iterations is None:
+            if os.path.exists(dataset_file):
+                file=open(dataset_file, 'r')
+                iterations=len(file.read().splitlines())
+                file.close()
+            else:
+                raise FileNotFoundError(f"Dataset file '{dataset_file}' not found. Either create it or manually pass an 'iterations' parameter to Circuit.write_tb.")
 
 
         '''Get inputs/outputs information'''
@@ -734,8 +755,11 @@ class Circuit:
         if dump_vcd:
             text=f'{text} $dumpfile("./{self.topmodule}.vcd");\n' \
                  f' $dumpvars(0,{self.topmodule}_tb);\n'
+
+        relative_dataset_path = os.path.relpath(dataset_file, start=os.path.dirname(filename))
+
         text=f'{text} file=$fopen("output.txt","w");\n' \
-             f' mem=$fopen("dataset", "r");\n'
+             f' mem=$fopen("{relative_dataset_path}", "r");\n'
         for i in inputs_info.keys():
             text=f'{text} {i} = 0;\n'
         text=f'{text} #{delay}\n' \
@@ -763,11 +787,11 @@ class Circuit:
               f'end\n' \
               f'endmodule\n'
 
-        with open(os.path.join(f'{self.output_folder}/{self.topmodule}_tb.v'), 'w') as file:
+        with open(os.path.join(filename), 'w') as file:
             file.write(text)
             file.close()
 
-        return file.name
+        return
 
     def resynth(self):
         '''
