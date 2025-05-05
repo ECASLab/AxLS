@@ -1,7 +1,6 @@
 from collections import OrderedDict
 from typing import List
 import numpy as np
-from numpy import uint8
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree._tree import Tree
 
@@ -67,7 +66,8 @@ class DecisionTreeCircuit:
         self.one_tree_per_output = one_tree_per_output
         if one_tree_per_output:
             self.clf = [
-                DecisionTreeClassifier(**kwargs) for _ in range(len(self.circuit_outputs))
+                DecisionTreeClassifier(**kwargs)
+                for _ in range(len(self.circuit_outputs))
             ]
         else:
             self.clf = DecisionTreeClassifier(**kwargs)
@@ -90,9 +90,6 @@ class DecisionTreeCircuit:
         outputs = _to_binary(y, output_bit_widths)
 
         if isinstance(self.clf, DecisionTreeClassifier):
-            print("HOLII")
-            print("inputs:", inputs[0:2])
-            print("outputs:", outputs[0:5])
             self.clf.fit(inputs, outputs)
         else:
             for clf, outputs in zip(self.clf, outputs.transpose()):
@@ -101,6 +98,16 @@ class DecisionTreeCircuit:
         self.trained = True
 
     def to_verilog_file(self, topmodule: str, output_file: str):
+        """
+        Generate a synthesizable Verilog file representing the learned decision tree(s).
+
+        Parameters
+        ----------
+        topmodule : str
+            The name of the top-level Verilog module.
+        output_file : str
+            Path to the output file where the Verilog code will be written.
+        """
         raw_parameters = ", ".join(
             [variable.name for variable in self.inputs + self.outputs]
         )
@@ -131,8 +138,6 @@ class DecisionTreeCircuit:
                         self.clf.tree_, i, 0, self.circuit_inputs
                     )
                 else:
-                    print(F"i: {i}")
-                    print(F"trees: {len(self.clf)}")
                     equation = _tree_2_equation(
                         self.clf[i].tree_, 0, 0, self.circuit_inputs
                     )
@@ -240,6 +245,28 @@ def _parse_circuit_variables(variable_list: List[str]):
 def _tree_2_equation(
     tree: Tree, output: int, node: int, circuit_inputs: list[str], depth=0
 ):
+    """
+    Recursively convert a decision tree node into a Boolean equation string.
+
+    Parameters
+    ----------
+    tree : sklearn.tree._tree.Tree
+        The underlying decision tree structure.
+    output : int
+        Output index to extract from multi-output trees.
+    node : int
+        Current node index in the tree.
+    circuit_inputs : list of str
+        Flat list of all bit-level input variable names.
+    depth : int, optional
+        Current recursion depth (used for internal tracing/debugging).
+
+    Returns
+    -------
+    str or None
+        A Boolean expression string for the subtree rooted at `node`, or None if
+        the subtree always evaluates to 0.
+    """
     if tree.feature[node] == -2:  # Leaf node
         result = tree.value[node][output].argmax()
         if result == 0:
