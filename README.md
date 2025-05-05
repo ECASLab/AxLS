@@ -308,7 +308,7 @@ This should returns a number like the following:
 This framework currently provides 2 kinds of ALS algorithms:
 
 - Pruning algorithms
-- (TODO IN PROGRESS) ML Supervised Learning algorithms
+- ML Supervised Learning algorithms
 
 ### Pruning Algorithms
 
