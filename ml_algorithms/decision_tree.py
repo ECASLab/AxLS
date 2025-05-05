@@ -46,7 +46,7 @@ class DecisionTreeCircuit:
     one_tree_per_output: bool
     inputs: List[CircuitVariable]
     outputs: List[CircuitVariable]
-    trained: bool
+    _trained: bool
 
     circuit_inputs: List[str]
     circuit_outputs: List[str]
@@ -62,7 +62,7 @@ class DecisionTreeCircuit:
         self.circuit_outputs = circuit_outputs
         self.inputs = _parse_circuit_variables(circuit_inputs)
         self.outputs = _parse_circuit_variables(circuit_outputs)
-        self.trained = False
+        self._trained = False
         self.one_tree_per_output = one_tree_per_output
         if one_tree_per_output:
             self.clf = [
@@ -95,7 +95,7 @@ class DecisionTreeCircuit:
             for clf, outputs in zip(self.clf, outputs.transpose()):
                 clf.fit(inputs, outputs)
 
-        self.trained = True
+        self._trained = True
 
     def to_verilog_file(self, topmodule: str, output_file: str):
         """
@@ -108,6 +108,12 @@ class DecisionTreeCircuit:
         output_file : str
             Path to the output file where the Verilog code will be written.
         """
+
+        if not self._trained:
+            raise RuntimeError(
+                "This model instance is not trained yet. Call 'train' with appropriate arguments before using this method."
+            )
+
         raw_parameters = ", ".join(
             [variable.name for variable in self.inputs + self.outputs]
         )
