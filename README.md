@@ -480,9 +480,91 @@ These algorithms train an ML model based on a circuit's inputs and outputs in
 order to learn a generalized version of the boolean function, then maps the
 model into an approximate circuit.
 
-TODO: Add methods here
+#### Decision Tree
 
- # Files and Folders
+This method works by training a decision tree on the input and output data of
+a real circuit. Then synthesizing that decision tree into a verilog circuit.
+
+Note that this method requires requires installing the `scikit-learn` package,
+since it levrages its decision tree implementation.
+
+1. First, import the `DecisionTreeCircuit` class. It abstracts the logic
+necessary to train scikit classifier trees as boolean decision trees.
+
+
+```python
+from ml_algorithms.decision_tree import DecisionTreeCircuit
+```
+
+2. Import the input and output datasets. For this we can use `read_dataset`.
+
+```python
+from utils import read_dataset
+
+# Example with RCA_4b benchmark
+NAME = "RCA_4b"
+DATASET = f"ALS-benchmark-circuits/{NAME}/dataset"
+ORIGINAL_OUTPUT = f"ALS-benchmark-circuits/{NAME}/output0.txt"
+DATASET_SIZE = 1000
+
+inputs = read_dataset(DATASET, 16, DATASET_SIZE)
+outputs = read_dataset(ORIGINAL_OUTPUT, 10, DATASET_SIZE)
+```
+
+If we need to generate the datasets first, we can do this with the `Circuit.generate_dataset()` and `Circuit.exact_output()` methods:
+
+```python
+TB = f"ALS-benchmark-circuits/{NAME}/{NAME}_tb.v"
+
+original_circuit.generate_dataset(DATASET, DATASET_SIZE)
+original_circuit.exact_output(TB, ORIGINAL_OUTPUT)
+```
+
+3. Train the decision tree model:
+
+```python
+clf = DecisionTreeCircuit(original_circuit.inputs, original_circuit.outputs, max_depth=4)
+clf.train(inputs, outputs)
+```
+
+Here `max_depth` is an optional parameter to control the maximum depth of the
+tree. One can also pass any parameter accepted by the [sklearn.tree.DecisionTreeClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+
+4. Synthesize the approximate circuit from the trained decision tree model:
+
+```python
+APPROX_NAME = "tree_adder"
+APPROX_RTL = f"{NAME}.v"
+
+clf.to_verilog_file(NAME, APPROX_RTL)
+```
+
+5. Evaluate the approximate circuit:
+
+```python
+approx_circuit = Circuit(APPROX_RTL, "NanGate15nm")
+APPROX_OUTPUT = f"{NAME}/output.txt"
+
+APPROX_TB = f"{NAME}_tb.v"
+
+approx_circuit.write_tb(APPROX_TB, DATASET, DATASET_SIZE)
+
+error = approx_circuit.simulate_and_compute_error(APPROX_TB, ORIGINAL_OUTPUT, APPROX_OUTPUT, "mred")
+
+print(f"Mean Relative Error: {error * 100}%")
+print(f"Original Area: {original_circuit.get_area()}")
+print(f"Approximate area: {approx_circuit.get_area()}")
+```
+
+This could return the following sample output:
+
+```
+Mean Relative Error: 22.900000000000002%
+Original Area: 6.586368
+Approximate area: 3.293184
+```
+
+# Files and Folders
 
 Files and Folders description:
 
