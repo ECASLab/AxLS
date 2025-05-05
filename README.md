@@ -485,8 +485,8 @@ model into an approximate circuit.
 This method works by training a decision tree on the input and output data of
 a real circuit. Then synthesizing that decision tree into a verilog circuit.
 
-Note that this method requires requires installing the `scikit-learn` package,
-since it levrages its decision tree implementation.
+Note that this method requires installing the `scikit-learn` package, since it
+leverages its decision tree implementation.
 
 1. First, import the `DecisionTreeCircuit` class. It abstracts the logic
 necessary to train scikit classifier trees as boolean decision trees.
@@ -534,18 +534,18 @@ tree. One can also pass any parameter accepted by the [sklearn.tree.DecisionTree
 
 ```python
 APPROX_NAME = "tree_adder"
-APPROX_RTL = f"{NAME}.v"
+APPROX_RTL = f"{APPROX_NAME}.v"
 
-clf.to_verilog_file(NAME, APPROX_RTL)
+clf.to_verilog_file(APPROX_NAME, APPROX_RTL)
 ```
 
 5. Evaluate the approximate circuit:
 
 ```python
 approx_circuit = Circuit(APPROX_RTL, "NanGate15nm")
-APPROX_OUTPUT = f"{NAME}/output.txt"
+APPROX_OUTPUT = f"{APPROX_NAME}/output.txt"
 
-APPROX_TB = f"{NAME}_tb.v"
+APPROX_TB = f"{APPROX_NAME}_tb.v"
 
 approx_circuit.write_tb(APPROX_TB, DATASET, DATASET_SIZE)
 
@@ -553,15 +553,15 @@ error = approx_circuit.simulate_and_compute_error(APPROX_TB, ORIGINAL_OUTPUT, AP
 
 print(f"Mean Relative Error: {error * 100}%")
 print(f"Original Area: {original_circuit.get_area()}")
-print(f"Approximate area: {approx_circuit.get_area()}")
+print(f"Approximate Area: {approx_circuit.get_area()}")
 ```
 
 This could return the following sample output:
 
 ```
-Mean Relative Error: 22.900000000000002%
+Mean Relative Error: 22.90%
 Original Area: 6.586368
-Approximate area: 3.293184
+Approximate Area: 3.293184
 ```
 
 # Files and Folders
