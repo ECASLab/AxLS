@@ -32,7 +32,7 @@ class ApproxSynthesisConfig:
 
     Parameters
     ----------
-    method : AlsMethod | str
+    method : AlsMethod
         One of the supported methods. Can use the AlsMethod enum or one of the
         following string names: 'inconst', 'outconst', 'probrun',
         'significance', 'ccarving', or 'decision_tree'.
@@ -104,9 +104,26 @@ class ApproxSynthesisConfig:
         Whether to show simulation progress.
     """
 
+    # After instantiation/validation the method is always turned into an
+    # AlsMethod and anything that can be a list is turned into a list. For ease
+    # of use of this struct in the runner code.
+    method: AlsMethod
+    circuit_file: List[str]
+    dataset_file: List[str]
+    generate_dataset: List[str | int | float] | None
+    dataset_fraction: List[int | float] | None
+    resynthesis: bool
+    error_threshold: float | None
+    max_iters: int | None
+    save_file: str | None
+    continue_from_save: bool
+    max_depth: List[int] | None
+    one_tree_per_output: bool
+    show_tb_progress: bool
+
     def __init__(
         self,
-        method: str,
+        method: AlsMethod | str,
         circuit_file: str | List[str],
         dataset_file: str | List[str],
         generate_dataset: str | int | float | List[str | int | float] | None = None,
@@ -120,47 +137,48 @@ class ApproxSynthesisConfig:
         one_tree_per_output: bool = False,
         show_tb_progress: bool = False,
     ):
-        self.method = method
-        self.circuit_file = circuit_file
-        self.dataset_file = dataset_file
-        self.generate_dataset = generate_dataset
-        self.dataset_fraction = dataset_fraction
+        """
+        Instantiate and validate an ApproxSynthesisConfig.
+
+        Raises
+        ------
+        ValueError
+            If required parameters are missing or invalid.
+        """
+        self.method = _validate_method(method)
+        self.circuit_file = _validate_circuit_files(circuit_file)
+        self.dataset_file = _validate_dataset_files(
+            dataset_file, self.circuit_file, generate_dataset
+        )
+
+        _validate_dataset_fraction_vs_generate_exclusivity(
+            generate_dataset, dataset_fraction
+        )
+
+        self.generate_dataset = _validate_generate_dataset(
+            generate_dataset, self.dataset_file
+        )
+        self.dataset_fraction = _validate_dataset_fraction(
+            dataset_fraction, self.dataset_file
+        )
+
         self.resynthesis = resynthesis
-        self.error_threshold = error_threshold
-        self.max_iters = max_iters
-        self.save_file = save_file
+        self.error_threshold = _validate_error_threshold(
+            error_threshold, self.method, self.resynthesis
+        )
+        self.max_iters = _validate_max_iters(max_iters, self.method, self.resynthesis)
+        self.max_depth = _validate_max_depth(max_depth, self.method, self.circuit_file)
+        self.save_file = _validate_save_file(save_file, continue_from_save)
         self.continue_from_save = continue_from_save
-        self.max_depth = max_depth
         self.one_tree_per_output = one_tree_per_output
         self.show_progress = show_tb_progress
-        validate_config(self)
+
+    def __repr__(self):
+        fields = ", ".join(f"{key}={value!r}" for key, value in self.__dict__.items())
+        return f"{self.__class__.__name__}({fields})"
 
 
-def validate_config(config: ApproxSynthesisConfig):
-    """
-    Validates the given ApproxSynthesisConfig. For more details on how each
-    parameter is checked, refer to the ApproxSynthesisConfig docs or to each
-    `_validate...` function's docs.
-
-    Raises
-    ------
-    ValueError
-        If required parameters are missing or invalid.
-    """
-
-    _validate_method(config)
-    _validate_circuit_files(config)
-    _validate_dataset_files(config)
-    _validate_dataset_vs_generate_exclusivity(config)
-    _validate_generate_dataset(config)
-    _validate_dataset_fraction(config)
-    _validate_error_threshold(config)
-    _validate_max_iters(config)
-    _validate_max_depth(config)
-    _validate_continue_from_save(config)
-
-
-def _validate_method(config: ApproxSynthesisConfig):
+def _validate_method(method: AlsMethod | str) -> AlsMethod:
     """
     Validates the synthesis method.
 
@@ -169,31 +187,38 @@ def _validate_method(config: ApproxSynthesisConfig):
 
     Ensures consistency for downstream logic by enforcing enum usage.
     """
-    if isinstance(config.method, str):
+    if isinstance(method, str):
         try:
-            config.method = AlsMethod(config.method)
+            method = AlsMethod(method)
         except ValueError:
             available_methods = ", ".join([method.value for method in AlsMethod])
             raise ValueError(
-                f"{config.method} is not a valid {AlsMethod.__name__}. Available methods are: {available_methods}"
+                f"{method} is not a valid {AlsMethod.__name__}. Available methods are: {available_methods}"
             )
 
+    return method
 
-def _validate_circuit_files(config: ApproxSynthesisConfig):
+
+def _validate_circuit_files(circuits: str | List[str]) -> List[str]:
     """
     Validates the existence of circuit files.
 
     Checks if each file path in `circuit_file` exists. If not, raises a ValueError.
     Ensures input Verilog files are valid for further processing.
     """
-    circuits = config.circuit_file
     circuits = circuits if isinstance(circuits, list) else [circuits]
     for circuit in circuits:
         if not os.path.isfile(circuit):
             raise ValueError(f"Circuit file does not exist: {circuit}")
 
+    return circuits
 
-def _validate_dataset_files(config: ApproxSynthesisConfig):
+
+def _validate_dataset_files(
+    dataset_files: str | List[str],
+    circuit_files: List[str],
+    generate_dataset: str | int | float | List[str | int | float] | None,
+) -> List[str]:
     """
     Validates dataset files.
 
@@ -203,30 +228,37 @@ def _validate_dataset_files(config: ApproxSynthesisConfig):
     Raises a ValueError if any required dataset file is missing.
     """
     dataset_files = _ensure_length_match(
-        config.dataset_file, config.circuit_file, "dataset_file", "circuit_file"
+        dataset_files, circuit_files, "dataset_file", "circuit_file"
     )
-    if config.generate_dataset is None:
+    if generate_dataset is None:
         for f in dataset_files:
             if not os.path.isfile(f):
                 raise ValueError(
                     f"Dataset file not found: {f}. Use 'generate_dataset' or provide a valid file."
                 )
+    return dataset_files
 
 
-def _validate_dataset_vs_generate_exclusivity(config: ApproxSynthesisConfig):
+def _validate_dataset_fraction_vs_generate_exclusivity(
+    generate_dataset: str | int | float | List[str | int | float] | None,
+    dataset_fraction: int | float | List[int | float] | None,
+):
     """
     Ensures mutual exclusivity between 'generate_dataset' and 'dataset_fraction'.
 
     Both fields are incompatible; only one may be provided.
     Raises a ValueError if both are given.
     """
-    if config.generate_dataset is not None and config.dataset_fraction is not None:
+    if generate_dataset is not None and dataset_fraction is not None:
         raise ValueError(
             "Cannot specify both 'generate_dataset' and 'dataset_fraction'."
         )
 
 
-def _validate_generate_dataset(config: ApproxSynthesisConfig):
+def _validate_generate_dataset(
+    generate_dataset: str | int | float | List[str | int | float] | None,
+    dataset_files: List[str],
+) -> List[str | int | float] | None:
     """
     Validates 'generate_dataset' parameters.
 
@@ -238,10 +270,10 @@ def _validate_generate_dataset(config: ApproxSynthesisConfig):
     Uses `_ensure_length_match` to align with dataset files.
     Raises ValueError for invalid values.
     """
-    if config.generate_dataset is not None:
+    if generate_dataset is not None:
         gens = _ensure_length_match(
-            config.generate_dataset,
-            config.dataset_file,
+            generate_dataset,
+            dataset_files,
             "generate_dataset",
             "dataset_file",
         )
@@ -261,9 +293,13 @@ def _validate_generate_dataset(config: ApproxSynthesisConfig):
                     )
             else:
                 raise ValueError(f"Invalid generate_dataset value: {g}")
+        return gens
 
 
-def _validate_dataset_fraction(config: ApproxSynthesisConfig):
+def _validate_dataset_fraction(
+    dataset_fraction: int | float | List[int | float] | None,
+    dataset_files: List[str],
+) -> List[int | float] | None:
     """
     Validates 'dataset_fraction'.
 
@@ -274,10 +310,10 @@ def _validate_dataset_fraction(config: ApproxSynthesisConfig):
     Uses `_ensure_length_match` to align with dataset files.
     Raises ValueError for out-of-range values.
     """
-    if config.dataset_fraction is not None:
+    if dataset_fraction is not None:
         fracs = _ensure_length_match(
-            config.dataset_fraction,
-            config.dataset_file,
+            dataset_fraction,
+            dataset_files,
             "dataset_fraction",
             "dataset_file",
         )
@@ -289,9 +325,14 @@ def _validate_dataset_fraction(config: ApproxSynthesisConfig):
                     "dataset_fraction as percentage must be between 0 and 1"
                 )
             # TODO: Check dataset size to ensure integer fraction < full dataset
+        return fracs
 
 
-def _validate_error_threshold(config: ApproxSynthesisConfig):
+def _validate_error_threshold(
+    error_threshold: float | None,
+    method: AlsMethod,
+    resynthesis: bool,
+) -> float | None:
     """
     Validates 'error_threshold'.
 
@@ -301,22 +342,24 @@ def _validate_error_threshold(config: ApproxSynthesisConfig):
 
     Raises ValueError if missing in those cases.
     """
-    if config.method in _ITERATIVE_METHODS:
-        if config.error_threshold is None:
-            raise ValueError(
-                f"'error_threshold' is required for method {config.method}"
-            )
+    if method in _ITERATIVE_METHODS:
+        if error_threshold is None:
+            raise ValueError(f"'error_threshold' is required for method {method}")
     elif (
-        config.method in _ITERATIVE_METHODS_WITH_RESYNTHESIS
-        and config.resynthesis
-        and config.error_threshold is None
+        method in _ITERATIVE_METHODS_WITH_RESYNTHESIS
+        and resynthesis
+        and error_threshold is None
     ):
         raise ValueError(
-            f"'error_threshold' is required for method {config.method} with resynthesis"
+            f"'error_threshold' is required for method {method} with resynthesis"
         )
 
+    return error_threshold
 
-def _validate_max_iters(config: ApproxSynthesisConfig):
+
+def _validate_max_iters(
+    max_iters: int | None, method: AlsMethod, resynthesis: bool
+) -> int | None:
     """
     Validates 'max_iters'.
 
@@ -325,16 +368,16 @@ def _validate_max_iters(config: ApproxSynthesisConfig):
     Raises ValueError if missing in that case.
     """
     if (
-        config.method in _ITERATIVE_METHODS_WITH_RESYNTHESIS
-        and config.resynthesis
-        and config.max_iters is None
+        method in _ITERATIVE_METHODS_WITH_RESYNTHESIS
+        and resynthesis
+        and max_iters is None
     ):
-        raise ValueError(
-            f"'max_iters' is required for {config.method} with resynthesis"
-        )
+        raise ValueError(f"'max_iters' is required for {method} with resynthesis")
 
 
-def _validate_max_depth(config: ApproxSynthesisConfig):
+def _validate_max_depth(
+    max_depth: int | List[int] | None, method: AlsMethod, circuit_files: List[str]
+):
     """
     Validates 'max_depth' for decision trees.
 
@@ -342,35 +385,47 @@ def _validate_max_depth(config: ApproxSynthesisConfig):
     the number of circuit files if given as a list.
     Raises ValueError if missing or mismatched.
     """
-    if config.method == AlsMethod.DECISION_TREE:
-        if config.max_depth is None:
-            raise ValueError(f"'max_depth' is required for method f{config.method}.")
+    if method == AlsMethod.DECISION_TREE:
+        if max_depth is None:
+            raise ValueError(f"'max_depth' is required for method f{method}.")
         else:
-            _ensure_length_match(
-                config.max_depth, config.circuit_file, "max_depth", "circuit_file"
-            )
+            _ensure_length_match(max_depth, circuit_files, "max_depth", "circuit_file")
 
 
-def _validate_continue_from_save(config: ApproxSynthesisConfig):
+def _validate_save_file(save_file: str | None, continue_from_save: bool) -> str | None:
     """
     Validates parameters for continuing from a saved file.
 
     Ensures 'save_file' is provided and exists on disk when
     'continue_from_save' is True. Raises ValueError otherwise.
     """
-    if config.continue_from_save:
-        if config.save_file is None:
+    if continue_from_save:
+        if save_file is None:
             raise ValueError("To continue from save, 'save_file' must be provided.")
-        if not os.path.isfile(config.save_file):
-            raise ValueError("To continue from save, 'save_file' must exist.")
+        if not os.path.isfile(save_file):
+            raise ValueError(
+                f"To continue from save, 'save_file' must exist: {save_file}"
+            )
+
+    return save_file
 
 
-def _ensure_length_match(values, ref_values, field_name, ref_name):
+def _ensure_length_match[T: str | int | float](
+    values: T | List[T],
+    ref_values: List[str],
+    field_name: str,
+    ref_name: str,
+) -> List[T]:
     """
     Ensures list parameters match reference list length.
 
     Converts scalar to list and compares length if both are lists.
     Raises ValueError if mismatched or list is given with scalar reference.
+
+    When converting scalar to list, the list returned contains N copies of the
+    scalar value, where N is the length of the reference list.
+    This is done so that the config object ends up with only lists that all are
+    of equal length, for easy handling in the runner code.
 
     Parameters
     ----------
@@ -389,15 +444,11 @@ def _ensure_length_match(values, ref_values, field_name, ref_name):
         The validated values, always as a list.
     """
     if isinstance(values, list):
-        if isinstance(ref_values, list):
-            if len(values) != len(ref_values):
-                raise ValueError(
-                    f"'{field_name}' length ({len(values)}) must match {ref_name} count ({len(ref_values)})"
-                )
-        else:
+        if len(values) != len(ref_values):
             raise ValueError(
-                f"'{field_name}' can't be given as a list if {ref_name} isn't a list."
+                f"'{field_name}' length ({len(values)}) must match {ref_name} count ({len(ref_values)})"
             )
         return values
     else:
-        return [values]
+        value: T = values
+        return [value for _ in ref_values]
