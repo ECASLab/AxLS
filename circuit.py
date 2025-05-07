@@ -650,7 +650,7 @@ class Circuit:
 
         return
 
-    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False):
+    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False, show_progress=True):
         '''
         Writes a basic testbench for the circuit.
 
@@ -675,6 +675,8 @@ class Circuit:
                 'o' for octal
                 'd' for decimal
                 'b' for binary
+        show_progress: bool, default = True
+            Whether the testbench should print its progress as it executes.
 
         Returns
         -------
@@ -751,7 +753,11 @@ class Circuit:
               f'\n' \
 
         '''Initial statement'''
-        text= f'{text}initial begin\n $display("-- Beginning Simulation --");\n\n'
+        text= f'{text}initial begin\n'
+
+        if show_progress:
+            text += '$display("-- Beginning Simulation --");\n\n'
+
         if dump_vcd:
             text=f'{text} $dumpfile("./{self.topmodule}.vcd");\n' \
                  f' $dumpvars(0,{self.topmodule}_tb);\n'
@@ -778,9 +784,12 @@ class Circuit:
         text=f'{text}",'
         for o in list(outputs_info.keys())[::-1][0:-1]:
             text= f'{text}{o},'
-        text= f'{text}{list(outputs_info.keys())[0]});\n'\
-            + f'  $display("-- Progress: %d/{iterations} --",i+1);\n'\
-              f' end\n' \
+        text= f'{text}{list(outputs_info.keys())[0]});\n'
+
+        if show_progress:
+            text +=f'  $display("-- Progress: %d/{iterations} --",i+1);\n'
+
+        text = f'{text}end\n' \
               f' $fclose(file);\n' \
               f' $fclose(mem);\n' \
               f' $finish;\n' \
