@@ -12,6 +12,12 @@ class AlsMethod(str, Enum):
     CCARVING = "ccarving"
     DECISION_TREE = "decision_tree"
 
+    def __repr__(self):
+        return self.value
+
+    def __str__(self):
+        return self.value
+
 
 # List of iterative methods.
 _ITERATIVE_METHODS = [
@@ -37,18 +43,18 @@ class ApproxSynthesisConfig:
         following string names: 'inconst', 'outconst', 'probrun',
         'significance', 'ccarving', or 'decision_tree'.
 
-    circuit_file : str | List[str]
+    circuit : str | List[str]
         Path(s) to the Verilog circuit file(s).
 
-    dataset_file : str | List[str]
+    dataset : str | List[str]
         Path(s) to the dataset file(s).
 
-        If multiple circuits were specified with `circuit_file`, this can be
-        given as a list which must match the `circuit_file` list length.
+        If multiple circuits were specified with `circuit`, this can be
+        given as a list which must match the `circuit` list length.
         Each dataset will be used with each corresponding circuit.
 
-    generate_dataset : str | int | float | List[str | int | float], optional
-        If specified, the dataset file(s) given with dataset_file will be
+    generate : str | int | float | List[str | int | float], optional
+        If specified, the dataset file(s) given with dataset will be
         generated on the spot. Overwriting any existing file(s).
 
         Rule(s) to generate dataset. Can be:
@@ -56,25 +62,25 @@ class ApproxSynthesisConfig:
         - an integer number of inputs
         - a float percentage (0 < x <= 1)
 
-        If multiple datasets were specified with `dataset_file`, this option can
-        be given as a list which must match the `dataset_file` list length.
+        If multiple datasets were specified with `dataset`, this option can
+        be given as a list which must match the `dataset` list length.
         Each dataset will be generated with the corresponding settings.
 
-    dataset_fraction : int | float | List[int | float], optional
-        Subset of dataset to use. Cannot be used with `generate_dataset`.
+    subset : int | float | List[int | float], optional
+        Subset of dataset to use. Cannot be used with `generate`.
 
         Can be given as:
         - an integer number of inputs (lower than dataset size)
         - a float percentage (0 < x <= 1)
 
-        If multiple datasets were specified with `dataset_file`, this option
-        can be given as a list which must match the `dataset_file` list length.
+        If multiple datasets were specified with `dataset`, this option
+        can be given as a list which must match the `dataset` list length.
         Each dataset will be generated with the corresponding settings.
 
     resynthesis : bool, default=False
         Whether to use resynthesis.
 
-    error_threshold : float (0 < x <= 1)
+    error : float (0 < x <= 1)
         The maximum error threshold permitted. Required for iterative methods,
         like pruning methods or ML methods with resynthesis.
 
@@ -82,17 +88,17 @@ class ApproxSynthesisConfig:
         Maximum amount of iterations to execute. Used in iterative methods,
         like pruning methods or ML methods with resynthesis.
 
-    save_file : str, optional
+    save : str, optional
         Path to file where configuration and progress of the run is saved.
 
-    continue_from_save : bool, default=False
-        Whether to continue from a saved file. If True, `save_file` option must
+    resume : bool, default=False
+        Whether to continue from a saved file. If True, `save` option must
         be provided. If the file doesn't exist, a new run will be started.
 
     max_depth : int | List[int]
         Required for 'decision_tree'. Can be a single int or list if multiple
         circuits are specified. In which case the list must match the
-        `circuit_file` list length. Each circuit will use the corresponding max
+        `circuit` list length. Each circuit will use the corresponding max
         depth for its decision tree.
 
     one_tree_per_output : bool, default=False
@@ -100,7 +106,7 @@ class ApproxSynthesisConfig:
         If True, uses a separate tree per output.
         If False, uses a single multi-output tree.
 
-    show_tb_progress : bool, default=False
+    show_progress : bool, default=False
         Whether to show simulation progress.
     """
 
@@ -108,34 +114,34 @@ class ApproxSynthesisConfig:
     # AlsMethod and anything that can be a list is turned into a list. For ease
     # of use of this struct in the runner code.
     method: AlsMethod
-    circuit_file: List[str]
-    dataset_file: List[str]
-    generate_dataset: List[str | int | float] | None
-    dataset_fraction: List[int | float] | None
+    circuit: List[str]
+    dataset: List[str]
+    generate: List[str | int | float] | None
+    subset: List[int | float] | None
     resynthesis: bool
-    error_threshold: float | None
+    error: float | None
     max_iters: int | None
-    save_file: str | None
-    continue_from_save: bool
+    save: str | None
+    resume: bool
     max_depth: List[int] | None
     one_tree_per_output: bool
-    show_tb_progress: bool
+    show_progress: bool
 
     def __init__(
         self,
         method: AlsMethod | str,
-        circuit_file: str | List[str],
-        dataset_file: str | List[str],
-        generate_dataset: str | int | float | List[str | int | float] | None = None,
-        dataset_fraction: int | float | List[int | float] | None = None,
+        circuit: str | List[str],
+        dataset: str | List[str],
+        generate: str | int | float | List[str | int | float] | None = None,
+        subset: int | float | List[int | float] | None = None,
         resynthesis: bool = False,
-        error_threshold: float | None = None,
+        error: float | None = None,
         max_iters: int | None = None,
-        save_file: str | None = None,
-        continue_from_save: bool = False,
+        save: str | None = None,
+        resume: bool = False,
         max_depth: int | List[int] | None = None,
         one_tree_per_output: bool = False,
-        show_tb_progress: bool = False,
+        show_progress: bool = False,
     ):
         """
         Instantiate and validate an ApproxSynthesisConfig.
@@ -146,32 +152,23 @@ class ApproxSynthesisConfig:
             If required parameters are missing or invalid.
         """
         self.method = _validate_method(method)
-        self.circuit_file = _validate_circuit_files(circuit_file)
-        self.dataset_file = _validate_dataset_files(
-            dataset_file, self.circuit_file, generate_dataset
-        )
+        self.circuit = _validate_circuits(circuit)
+        self.dataset = _validate_datasets(dataset, self.circuit, generate)
 
-        _validate_dataset_fraction_vs_generate_exclusivity(
-            generate_dataset, dataset_fraction
-        )
+        _validate_subset_vs_generate_exclusivity(generate, subset)
 
-        self.generate_dataset = _validate_generate_dataset(
-            generate_dataset, self.dataset_file
-        )
-        self.dataset_fraction = _validate_dataset_fraction(
-            dataset_fraction, self.dataset_file
-        )
+        self.generate = _validate_generate(generate, self.dataset)
+        self.subset = _validate_subset(subset, self.dataset)
 
         self.resynthesis = resynthesis
-        self.error_threshold = _validate_error_threshold(
-            error_threshold, self.method, self.resynthesis
-        )
+        self.error = _validate_error(error, self.method, self.resynthesis)
         self.max_iters = _validate_max_iters(max_iters, self.method, self.resynthesis)
-        self.max_depth = _validate_max_depth(max_depth, self.method, self.circuit_file)
-        self.save_file = _validate_save_file(save_file, continue_from_save)
-        self.continue_from_save = continue_from_save
+
+        self.max_depth = _validate_max_depth(max_depth, self.method, self.circuit)
+        self.save = _validate_save(save, resume)
+        self.resume = resume
         self.one_tree_per_output = one_tree_per_output
-        self.show_progress = show_tb_progress
+        self.show_progress = show_progress
 
     def __repr__(self):
         fields = ", ".join(f"{key}={value!r}" for key, value in self.__dict__.items())
@@ -199,11 +196,11 @@ def _validate_method(method: AlsMethod | str) -> AlsMethod:
     return method
 
 
-def _validate_circuit_files(circuits: str | List[str]) -> List[str]:
+def _validate_circuits(circuits: str | List[str]) -> List[str]:
     """
     Validates the existence of circuit files.
 
-    Checks if each file path in `circuit_file` exists. If not, raises a ValueError.
+    Checks if each file path in `circuit` exists. If not, raises a ValueError.
     Ensures input Verilog files are valid for further processing.
     """
     circuits = circuits if isinstance(circuits, list) else [circuits]
@@ -214,53 +211,49 @@ def _validate_circuit_files(circuits: str | List[str]) -> List[str]:
     return circuits
 
 
-def _validate_dataset_files(
-    dataset_files: str | List[str],
-    circuit_files: List[str],
-    generate_dataset: str | int | float | List[str | int | float] | None,
+def _validate_datasets(
+    datasets: str | List[str],
+    circuits: List[str],
+    generate: str | int | float | List[str | int | float] | None,
 ) -> List[str]:
     """
     Validates dataset files.
 
-    Ensures each dataset file exists, unless 'generate_dataset' is set.
+    Ensures each dataset file exists, unless 'generate' is set.
 
     Uses `_ensure_length_match` to validate correspondence with circuit files.
     Raises a ValueError if any required dataset file is missing.
     """
-    dataset_files = _ensure_length_match(
-        dataset_files, circuit_files, "dataset_file", "circuit_file"
-    )
-    if generate_dataset is None:
-        for f in dataset_files:
+    datasets = _ensure_length_match(datasets, circuits, "dataset", "circuit")
+    if generate is None:
+        for f in datasets:
             if not os.path.isfile(f):
                 raise ValueError(
-                    f"Dataset file not found: {f}. Use 'generate_dataset' or provide a valid file."
+                    f"Dataset file not found: {f}. Use 'generate' or provide a valid file."
                 )
-    return dataset_files
+    return datasets
 
 
-def _validate_dataset_fraction_vs_generate_exclusivity(
-    generate_dataset: str | int | float | List[str | int | float] | None,
-    dataset_fraction: int | float | List[int | float] | None,
+def _validate_subset_vs_generate_exclusivity(
+    generate: str | int | float | List[str | int | float] | None,
+    subset: int | float | List[int | float] | None,
 ):
     """
-    Ensures mutual exclusivity between 'generate_dataset' and 'dataset_fraction'.
+    Ensures mutual exclusivity between 'generate' and 'subset'.
 
     Both fields are incompatible; only one may be provided.
     Raises a ValueError if both are given.
     """
-    if generate_dataset is not None and dataset_fraction is not None:
-        raise ValueError(
-            "Cannot specify both 'generate_dataset' and 'dataset_fraction'."
-        )
+    if generate is not None and subset is not None:
+        raise ValueError("Cannot specify both 'generate' and 'subset'.")
 
 
-def _validate_generate_dataset(
-    generate_dataset: str | int | float | List[str | int | float] | None,
-    dataset_files: List[str],
+def _validate_generate(
+    generate: str | int | float | List[str | int | float] | None,
+    datasets: List[str],
 ) -> List[str | int | float] | None:
     """
-    Validates 'generate_dataset' parameters.
+    Validates 'generate' parameters.
 
     Ensures that each generation rule is valid:
     - str: must be 'exhaustive'
@@ -270,38 +263,36 @@ def _validate_generate_dataset(
     Uses `_ensure_length_match` to align with dataset files.
     Raises ValueError for invalid values.
     """
-    if generate_dataset is not None:
+    if generate is not None:
         gens = _ensure_length_match(
-            generate_dataset,
-            dataset_files,
-            "generate_dataset",
-            "dataset_file",
+            generate,
+            datasets,
+            "generate",
+            "dataset",
         )
         for g in gens:
             if isinstance(g, str):
                 if g != "exhaustive":
-                    raise ValueError(f"Invalid generate_dataset string: {g}")
+                    raise ValueError(f"Invalid generate string: {g}")
                 # TODO: Check number of inputs in circuit (must be <= 32)
             elif isinstance(g, int):
                 if g <= 0:
-                    raise ValueError("Integer generate_dataset must be > 0")
+                    raise ValueError("Integer generate must be > 0")
                 # TODO: Check it's <= max input count of the circuit
             elif isinstance(g, float):
                 if not (0 < g <= 1):
-                    raise ValueError(
-                        "Percentage generate_dataset must be between 0 and 1."
-                    )
+                    raise ValueError("Percentage generate must be between 0 and 1.")
             else:
-                raise ValueError(f"Invalid generate_dataset value: {g}")
+                raise ValueError(f"Invalid generate value: {g}")
         return gens
 
 
-def _validate_dataset_fraction(
-    dataset_fraction: int | float | List[int | float] | None,
-    dataset_files: List[str],
+def _validate_subset(
+    subset: int | float | List[int | float] | None,
+    datasets: List[str],
 ) -> List[int | float] | None:
     """
-    Validates 'dataset_fraction'.
+    Validates 'subset'.
 
     Ensures values are valid:
     - int: must be > 0
@@ -310,31 +301,29 @@ def _validate_dataset_fraction(
     Uses `_ensure_length_match` to align with dataset files.
     Raises ValueError for out-of-range values.
     """
-    if dataset_fraction is not None:
+    if subset is not None:
         fracs = _ensure_length_match(
-            dataset_fraction,
-            dataset_files,
-            "dataset_fraction",
-            "dataset_file",
+            subset,
+            datasets,
+            "subset",
+            "dataset",
         )
         for f in fracs:
             if isinstance(f, int) and f <= 0:
-                raise ValueError("dataset_fraction as int must be > 0")
+                raise ValueError("subset as int must be > 0")
             elif isinstance(f, float) and not (0 < f <= 1):
-                raise ValueError(
-                    "dataset_fraction as percentage must be between 0 and 1"
-                )
+                raise ValueError("subset as percentage must be between 0 and 1")
             # TODO: Check dataset size to ensure integer fraction < full dataset
         return fracs
 
 
-def _validate_error_threshold(
-    error_threshold: float | None,
+def _validate_error(
+    error: float | None,
     method: AlsMethod,
     resynthesis: bool,
 ) -> float | None:
     """
-    Validates 'error_threshold'.
+    Validates 'error'.
 
     Required for:
     - all iterative methods
@@ -343,18 +332,14 @@ def _validate_error_threshold(
     Raises ValueError if missing in those cases.
     """
     if method in _ITERATIVE_METHODS:
-        if error_threshold is None:
-            raise ValueError(f"'error_threshold' is required for method {method}")
+        if error is None:
+            raise ValueError(f"'error' is required for method {method}")
     elif (
-        method in _ITERATIVE_METHODS_WITH_RESYNTHESIS
-        and resynthesis
-        and error_threshold is None
+        method in _ITERATIVE_METHODS_WITH_RESYNTHESIS and resynthesis and error is None
     ):
-        raise ValueError(
-            f"'error_threshold' is required for method {method} with resynthesis"
-        )
+        raise ValueError(f"'error' is required for method {method} with resynthesis")
 
-    return error_threshold
+    return error
 
 
 def _validate_max_iters(
@@ -376,38 +361,50 @@ def _validate_max_iters(
 
 
 def _validate_max_depth(
-    max_depth: int | List[int] | None, method: AlsMethod, circuit_files: List[str]
-):
+    max_depth: int | List[int] | None, method: AlsMethod, circuits: List[str]
+) -> List[int] | None:
     """
     Validates 'max_depth' for decision trees.
 
     Ensures it is provided for the 'decision_tree' method and aligns with
     the number of circuit files if given as a list.
+
+    Ensures values are valid:
+    - int: must be > 1
+
     Raises ValueError if missing or mismatched.
     """
     if method == AlsMethod.DECISION_TREE:
         if max_depth is None:
             raise ValueError(f"'max_depth' is required for method f{method}.")
         else:
-            _ensure_length_match(max_depth, circuit_files, "max_depth", "circuit_file")
+            max_depths = _ensure_length_match(
+                max_depth,
+                circuits,
+                "max_depth",
+                "circuit",
+            )
+            for m in max_depths:
+                if m <= 0:
+                    raise ValueError("max_depth must be > 0")
+                # TODO: Check dataset size to ensure integer fraction < full dataset
+            return max_depths
 
 
-def _validate_save_file(save_file: str | None, continue_from_save: bool) -> str | None:
+def _validate_save(save: str | None, resume: bool) -> str | None:
     """
     Validates parameters for continuing from a saved file.
 
-    Ensures 'save_file' is provided and exists on disk when
-    'continue_from_save' is True. Raises ValueError otherwise.
+    Ensures 'save' is provided and exists on disk when
+    'resume' is True. Raises ValueError otherwise.
     """
-    if continue_from_save:
-        if save_file is None:
-            raise ValueError("To continue from save, 'save_file' must be provided.")
-        if not os.path.isfile(save_file):
-            raise ValueError(
-                f"To continue from save, 'save_file' must exist: {save_file}"
-            )
+    if resume:
+        if save is None:
+            raise ValueError("To continue from save, 'save' must be provided.")
+        if not os.path.isfile(save):
+            raise ValueError(f"To continue from save, 'save' must exist: {save}")
 
-    return save_file
+    return save
 
 
 def _ensure_length_match[T: str | int | float](
@@ -451,4 +448,4 @@ def _ensure_length_match[T: str | int | float](
         return values
     else:
         value: T = values
-        return [value for _ in ref_values]
+        return [value] * len(ref_values)
