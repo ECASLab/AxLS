@@ -275,15 +275,15 @@ class Circuit:
 
 
 
-    def write_to_disk (self, filename=""):
+    def write_to_disk (self, filepath):
         '''
         Write the xml circuit into a netlist file considering the nodes to be
         deleted (marked with an attribute delete='yes')
 
-        Returns
-        -------
-        string
-            path of the recently created netlist
+        Parameters
+        ----------
+        filepath: string
+            Full file path to the generated file.
         '''
 
         def format_io(node, io):
@@ -292,9 +292,6 @@ class Circuit:
 
         nodes_to_delete = self.get_nodes_to_delete()
         to_be_deleted, to_be_assigned = self.get_wires_to_be_deleted()
-
-        filename = filename if filename != "" else str(randint(9999,999999))
-        filepath = f"{self.output_folder}{path.sep}{filename}.v"
 
         with open(filepath, 'w') as netlist_file:
 
@@ -340,7 +337,6 @@ class Circuit:
                 writeln(netlist_file, assign)
 
             writeln(netlist_file, "endmodule")
-        return filepath
 
 
     def show (self, filename=None, show_deletes=False, view=True, format="png"):
@@ -494,8 +490,8 @@ class Circuit:
         '''
 
 
-        name = get_name(5)
-        rtl = self.write_to_disk(name)
+        rtl = f"{self.output_folder}/{get_name(5)}.v"
+        self.write_to_disk(rtl)
 
         top = self.topmodule
         current_dir=os.path.dirname(__file__)
@@ -539,8 +535,8 @@ class Circuit:
             The user must provide the full file path and name. If the file
             exists, it will be overwritten.
         '''
-        name = get_name(5)
-        rtl = self.write_to_disk(name)
+        rtl = f"{self.output_folder}/{get_name(5)}.v"
+        self.write_to_disk(rtl)
 
         top = self.topmodule
         tech = "./templates/" + self.tech_file
@@ -666,7 +662,7 @@ class Circuit:
 
         return
 
-    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=None, show_progress=True):
+    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=None, show_progress=False):
         '''
         Writes a basic testbench for the circuit.
 
@@ -1106,8 +1102,10 @@ class Circuit:
         :return: path-like string
             path to resynthetized file
         '''
-        name=get_name(5)
-        self.netl_file =resynthesis(self.write_to_disk(name),self.tech_file,self.topmodule)
+        rtl = f"{self.output_folder}/{get_name(5)}.v"
+        self.write_to_disk(rtl)
+
+        self.netl_file =resynthesis(rtl,self.tech_file,self.topmodule)
 
         netlist = Netlist(self.netl_file, self.technology)
         self.netl_root = netlist.root
@@ -1117,7 +1115,7 @@ class Circuit:
         self.raw_outputs = netlist.raw_outputs
         self.raw_parameters = netlist.raw_parameters
 
-        os.remove(f'{self.output_folder}/{name}.v')
+        os.remove(rtl)
 
         return self.netl_file
 
@@ -1131,9 +1129,10 @@ class Circuit:
         '''
 
         if method == 'yosys':
-            name=get_name(5)
-            area=ys_get_area(self.write_to_disk(name),self.tech_file,self.topmodule)
-            os.remove(f'{self.output_folder}/{name}.v')
+            rtl = f"{self.output_folder}/{get_name(5)}.v"
+            self.write_to_disk(rtl)
+            area=ys_get_area(rtl,self.tech_file,self.topmodule)
+            os.remove(rtl)
 
             return area
         else:
