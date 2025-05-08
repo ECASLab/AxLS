@@ -1,7 +1,7 @@
 import os
 
 from enum import Enum
-from typing import List
+from typing import override
 
 from circuit import Circuit
 
@@ -14,9 +14,11 @@ class AlsMethod(str, Enum):
     CCARVING = "ccarving"
     DECISION_TREE = "decision_tree"
 
+    @override
     def __repr__(self):
         return self.value
 
+    @override
     def __str__(self):
         return self.value
 
@@ -60,13 +62,13 @@ class ApproxSynthesisConfig:
         Path to the dataset file.
         TODO: Document dataset file format.
 
-    metrics : List[str]
+    metrics : list[Metric | str]
         Metrics to calculate for the execution.
 
     resynthesis : bool, default=False
         Whether to use resynthesis.
 
-    error : float (0 < x <= 1)
+    error : float (0 < x <= 1), optional
         The maximum error threshold permitted. Required for iterative methods,
         like pruning methods or ML methods with resynthesis.
 
@@ -76,7 +78,7 @@ class ApproxSynthesisConfig:
         Maximum amount of iterations to execute. Used in iterative methods,
         like pruning methods or ML methods with resynthesis.
 
-    max_depth : int
+    max_depth : int, optional
         Required for 'decision_tree'.
 
     one_tree_per_output : bool, default=False
@@ -91,7 +93,7 @@ class ApproxSynthesisConfig:
     method: AlsMethod
     circuit: Circuit
     dataset: str
-    metrics: List[Metric]
+    metrics: list[Metric]
     resynthesis: bool
     error: float | None
     max_iters: int | None
@@ -104,13 +106,13 @@ class ApproxSynthesisConfig:
         method: AlsMethod | str,
         circuit: Circuit,
         dataset: str,
-        metrics: List[Metric | str],
-        resynthesis: bool,
-        error: float | None,
-        max_iters: int | None,
-        max_depth: int | None,
-        one_tree_per_output: bool,
-        show_progress: bool,
+        metrics: list[Metric | str],
+        resynthesis: bool = False,
+        error: float | None = None,
+        max_iters: int | None = None,
+        max_depth: int | None = None,
+        one_tree_per_output: bool = False,
+        show_progress: bool = False,
     ):
         """
         Instantiate and validate an ApproxSynthesisConfig.
@@ -133,6 +135,7 @@ class ApproxSynthesisConfig:
         self.one_tree_per_output = one_tree_per_output
         self.show_progress = show_progress
 
+    @override
     def __repr__(self):
         fields = ", ".join(f"{key}={value!r}" for key, value in self.__dict__.items())
         return f"{self.__class__.__name__}({fields})"
@@ -147,19 +150,18 @@ def _validate_method(method: AlsMethod | str) -> AlsMethod:
 
     Ensures consistency for downstream logic by enforcing enum usage.
     """
-    if isinstance(method, str):
-        try:
-            method = AlsMethod(method)
-        except ValueError:
-            available_methods = ", ".join([method.value for method in AlsMethod])
-            raise ValueError(
-                f"{method} is not a valid {AlsMethod.__name__}. Available methods are: {available_methods}"
-            )
+    try:
+        method = AlsMethod(method)
+    except ValueError:
+        available_methods = ", ".join([method.value for method in AlsMethod])
+        raise ValueError(
+            f"{method} is not a valid {AlsMethod.__name__}. Available methods are: {available_methods}"
+        )
 
     return method
 
 
-def _validate_metrics(metrics: List[str | Metric]) -> List[Metric]:
+def _validate_metrics(metrics: list[str | Metric]) -> list[Metric]:
     """
     Validates the metrics.
 
@@ -170,19 +172,16 @@ def _validate_metrics(metrics: List[str | Metric]) -> List[Metric]:
     Ensures consistency for downstream logic by enforcing enum usage.
     """
 
-    result_metrics: List[Metric] = []
+    result_metrics: list[Metric] = []
 
     for metric in metrics:
-        if isinstance(metric, str):
-            try:
-                result_metrics.append(Metric(metric))
-            except ValueError:
-                available_metrics = ", ".join([metric.value for metric in Metric])
-                raise ValueError(
-                    f"{metric} is not a valid {Metric.__name__}. Available metrics are: {available_metrics}"
-                )
-        else:
-            result_metrics.append(metric)
+        try:
+            result_metrics.append(Metric(metric))
+        except ValueError:
+            available_metrics = ", ".join([metric.value for metric in Metric])
+            raise ValueError(
+                f"{metric} is not a valid {Metric.__name__}. Available metrics are: {available_metrics}"
+            )
 
     return result_metrics
 
