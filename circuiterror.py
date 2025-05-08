@@ -1,4 +1,3 @@
-from enum import Enum
 import numpy as np
 
 def extract_numbers(filename):
@@ -26,15 +25,17 @@ def extract_numbers(filename):
     return result
 
 
-def compute_error(metric, original, approximate):
+def compute_error(metric, original, approximate) -> float:
     '''
     Computes the error between two different testbench output files
+
+    Raises a ValueError if the metric is invalid
 
     Parameters
     ----------
     metric : string
         equation to measure the error
-        options med, wce, mred, msed
+        options hd, med, wce, mred, msed
     original : string
         path to the original results text file
     approximate : string
@@ -63,18 +64,14 @@ def compute_error(metric, original, approximate):
         0 if original_output[x] == 0 else error_distance[x]/original_output[x]
         for x in range(0,len(original_output))]
 
-    # Error Rate:
-    if (metric == "er"):
-        return round(sum((error>0 for error in error_distance))/total,3)
-
     # Mean Hamming Distance see: https://stackoverflow.com/questions/40875282/fastest-way-to-get-hamming-distance-for-integer-array
     if (metric == "hd"):
         hamming_distance=np.bitwise_xor(original_output,approximate_output)
         hamming_distance=[f'{hd:b}'.count('1') for hd in hamming_distance]
-        return round(np.mean(hamming_distance),3)
+        return round(float(np.mean(hamming_distance)),3)
 
     # Mean Error Distance MED := sum { ED(bj,b) * pj }
-    if (metric == "med"):
+    elif (metric == "med"):
         mean_error = sum(error_distance) / len(error_distance)
         return round(mean_error,3)
 
@@ -91,3 +88,6 @@ def compute_error(metric, original, approximate):
     elif (metric == "msed"):
         msed = sum(square_error_distance)/len(square_error_distance)
         return round(msed,3)
+
+    else:
+        raise ValueError(f"Invalid metric: {metric}")
