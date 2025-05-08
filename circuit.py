@@ -38,7 +38,7 @@ class Circuit:
     '''
 
 
-    def __init__(self, rtl, tech, saif = ""):
+    def __init__(self, rtl, tech, saif = "", topmodule = None):
         '''
         Parse a rtl circuit into a xml tree using a specific technology library
 
@@ -50,12 +50,19 @@ class Circuit:
             path to the technology file
         saif : string
             path to the saif file
+        topmodule : string (optional)
+            name of the circuit module that we want to synthesize, if not
+            provided it will be inferred from the rtl filename
         '''
 
 
         self.rtl_file = rtl
         self.tech_file = tech
-        self.topmodule = rtl.split('/')[-1].replace(".v","")
+
+        if not topmodule:
+            topmodule = rtl.split('/')[-1].replace(".v","")
+
+        self.topmodule = topmodule
         self.netl_file = synthesis (rtl, self.tech_file, self.topmodule)
         self.technology = Technology(self.tech_file)
         # extract the usefull attributes of netlist
