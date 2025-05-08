@@ -120,7 +120,7 @@ class DecisionTreeCircuit:
         raw_inputs = [
             f"input {variable.name};"
             if variable.bits == 1
-            else f"input [{variable.bits}:0] {variable.name};"
+            else f"input [{variable.bits - 1}:0] {variable.name};"
             for variable in self.inputs
         ]
         raw_outputs = [
