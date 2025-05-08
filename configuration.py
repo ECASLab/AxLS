@@ -89,6 +89,17 @@ class ApproxSynthesisConfig:
 
     show_progress : bool, default=False
         Whether to show simulation progress.
+
+    csv : str, optional
+        Path to a file to save the output in csv format.
+        If the file doesn't exist, it will be created with a header for the
+        columns, if it exists it will be appended to.
+
+        The output will be given as a single line with the following columns:
+            method, circuit, resynthesis, error, max_iters, max_depth, one_tree_per_output, metric1, metric2, ...
+
+        - bool values are stored as "True" or "False".
+        - optional fields will just be left blank if not provided.
     """
 
     method: AlsMethod
@@ -101,6 +112,7 @@ class ApproxSynthesisConfig:
     max_depth: int | None
     one_tree_per_output: bool
     show_progress: bool
+    csv: str | None
 
     def __init__(
         self,
@@ -114,6 +126,7 @@ class ApproxSynthesisConfig:
         max_depth: int | None = None,
         one_tree_per_output: bool = False,
         show_progress: bool = False,
+        csv: str | None = None,
     ):
         """
         Instantiate and validate an ApproxSynthesisConfig.
@@ -135,11 +148,57 @@ class ApproxSynthesisConfig:
         self.max_depth = _validate_max_depth(max_depth, self.method)
         self.one_tree_per_output = one_tree_per_output
         self.show_progress = show_progress
+        self.csv = csv
 
     @override
     def __repr__(self):
         fields = ", ".join(f"{key}={value!r}" for key, value in self.__dict__.items())
         return f"{self.__class__.__name__}({fields})"
+
+    def csv_columns(self) -> list[str]:
+        """
+        Returns the names of the columns used if exporting this config's
+        execution to a CSV
+        """
+        columns = [
+            "method",
+            "circuit",
+            "resynthesis",
+            "error",
+            "max_iters",
+            "max_depth",
+            "one_tree_per_output",
+        ]
+        for metric in self.metrics:
+            columns.append(metric.value)
+
+        return columns
+
+    def csv_values(self, results: dict[Metric, float]) -> list[str]:
+        """
+        Returns the values of the columns if exporting this config's execution to
+        a CSV row.
+        A Results dict must be provided, it is assumed it contains the results
+        for the metrics given to this config.
+        """
+        values = [
+            self.method.value,
+            self.circuit.topmodule,
+            self.resynthesis,
+            self.error,
+            self.max_iters,
+            self.max_depth,
+            self.one_tree_per_output,
+        ]
+
+        for metric in self.metrics:
+            values.append(results[metric])
+
+        stringified_values = [
+            str(value) if value is not None else "" for value in values
+        ]
+
+        return stringified_values
 
 
 def _validate_method(method: AlsMethod | str) -> AlsMethod:

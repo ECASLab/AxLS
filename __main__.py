@@ -1,5 +1,4 @@
 import argparse
-from typing import List
 from circuit import Circuit
 from configuration import ApproxSynthesisConfig, AlsMethod, Metric
 
@@ -53,9 +52,9 @@ def main():
     args = parser.parse_args()
 
     if args.subcommand == "run":
-        metrics: List[str] = args.metrics
+        metrics: list[str] = args.metrics
         if len(metrics) == 0:
-            metrics = [ Metric.MEAN_RELATIVE_ERROR_DISTANCE ]
+            metrics = [Metric.MEAN_RELATIVE_ERROR_DISTANCE, Metric.ALS_TIME]
 
         try:
             circuit = Circuit(args.circuit, TECH)
@@ -70,6 +69,7 @@ def main():
                 max_depth=args.max_depth,
                 one_tree_per_output=args.one_tree_per_output,
                 show_progress=args.show_progress,
+                csv=args.csv,
             )
         except ValueError as e:
             parser.error(str(e))
@@ -99,7 +99,7 @@ def run_arguments(run_parser):
         nargs="*",
         choices=[m.value for m in Metric],
         # TODO: Add docs about what each metric is
-        help="Metrics to calculate, defaults to mred.",
+        help="Metrics to calculate, defaults to mred and time.",
     )
     run_parser.add_argument(
         "--resynthesis", action="store_true", help="If provided will use resynthesis."
@@ -130,8 +130,13 @@ def run_arguments(run_parser):
         type=str,
         help="""Path to a file to save the output in csv format.
         If the file doesn't exist, it will be created, if it exists it will be appended to.
+
         The output will be given as a single line with the following columns:
-            method, circuit, flag1, flag2, ...,  metric1, metric2, ...""",
+            method, circuit, resynthesis, error, max_iters, max_depth, one_tree_per_output, metric1, metric2, ...
+
+        - bool values are stored as "True" or "False".
+        - optional fields will just be left blank if not provided.
+        """,
     )
 
 
