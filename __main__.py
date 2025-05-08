@@ -1,6 +1,7 @@
 import argparse
 from circuit import Circuit
 from configuration import ApproxSynthesisConfig, AlsMethod, Metric
+from runner import run
 
 # The tech library is hardcoded for the following reasons:
 # - Ease of use: This way users don't have to provide a tech library which most
@@ -76,6 +77,13 @@ def main():
 
         print("Configuration loaded successfully")
         print(config)
+
+        results = run(config)
+
+        print("\n---- Results -----")
+        for metric in config.metrics:
+            value = results[metric]
+            print(f"{metric.value}: {metric.to_user_friendly_display(value)}")
 
     elif args.subcommand == "generate":
         generate_dataset(args)
