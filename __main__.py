@@ -1,25 +1,20 @@
 import argparse
-import os
-from typing import List
-from configuration import ApproxSynthesisConfig, AlsMethod
+from circuit import Circuit
+from configuration import ApproxSynthesisConfig, AlsMethod, Metric
 
+# The tech library is hardcoded for the following reasons:
+# - Ease of use: This way users don't have to provide a tech library which most
+#                of the time would be this same one.
+# - Tool limitations:
+#   - AxLS only provides this tech library.
+#   - The Circuit class accepts a tech library "name" and assumes a .v and .lib
+#     files by that name in the templates/ directory of AxLS exist.
+#   - If we want to let users provide custom tech libraries through optional
+#     flags we'll need to make Circuit accept arbitrary paths to the needed tech
+#     files.
+TECH="NanGate15nm"
 
 def parse_generate(value):
-    if value == "exhaustive":
-        return value
-
-    try:
-        return int(value)
-    except ValueError:
-        try:
-            return float(value)
-        except ValueError:
-            raise argparse.ArgumentTypeError(
-                f"Invalid generate_dataset value: {value}. Must be int, float or 'exhaustive'."
-            )
-
-
-def parse_subset(value):
     try:
         return int(value)
     except ValueError:
@@ -30,131 +25,140 @@ def parse_subset(value):
                 f"Invalid generate_dataset value: {value}. Must be int or float."
             )
 
-
 def main():
     parser = argparse.ArgumentParser(
-        description="AxLS CLI. Can execute the different Approximate Logic Synthesis methods available with some configuration options."
+        description="AxLS CLI. Provides a simplified interface to the package's functionality."
     )
-    parser.add_argument(
-        "--method",
-        required=True,
+
+    subparsers = parser.add_subparsers(
+        title="subcommands", dest="subcommand", required=True
+    )
+
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run Approximate Logic Synthesis on a circuit using one of the provided methods.",
+    )
+
+    run_arguments(run_parser)
+
+    generate_parser = subparsers.add_parser(
+        "generate", help="Generate a dataset that can be used with the 'run' command."
+    )
+
+    generate_arguments(generate_parser)
+
+    args = parser.parse_args()
+
+    if args.subcommand == "run":
+        try:
+            config = ApproxSynthesisConfig(
+                method=args.method,
+                circuit=args.circuit,
+                dataset=args.dataset,
+                resynthesis=args.resynthesis,
+                error=args.error,
+                max_iters=args.max_iters,
+                max_depth=args.max_depth,
+                one_tree_per_output=args.one_tree_per_output,
+                show_progress=args.show_progress,
+            )
+        except ValueError as e:
+            parser.error(str(e))
+
+        print("Configuration loaded successfully")
+        print(config)
+
+    elif args.subcommand == "generate":
+        generate_dataset(args)
+
+
+def run_arguments(run_parser):
+    """
+    Adds the arguments to the 'run' subcomand parser
+    """
+
+    run_parser.add_argument(
+        "method",
         type=str,
         choices=[m.value for m in AlsMethod],
         help="Approximation method.",
     )
-    parser.add_argument(
-        "--circuit", required=True, nargs="+", help="Verilog circuit file(s)."
-    )
-    parser.add_argument("--dataset", required=True, nargs="+", help="Dataset file(s).")
-    parser.add_argument(
-        "--generate",
+    run_parser.add_argument("circuit", help="Verilog circuit file.")
+    run_parser.add_argument("dataset", help="Dataset file to run simulations with.")
+    run_parser.add_argument(
+        "metrics",
         nargs="+",
-        type=parse_generate,
-        help="If provided, the dataset file(s) will be generated instead of looking for existing ones. This will overwrite any existing files. Accepts int (the amount of samples), float (between 0-1, a percentage of all the possible inputs) or 'exhaustive' (generate all possible inputs for a circuit, only usable for circuits with less than 32 input bits).",
+        choices=[m.value for m in Metric],
+        # TODO: Add docs about what each metric is
+        help="Metrics to calculate, at least one must be given.",
     )
-    parser.add_argument(
-        "--subset",
-        nargs="+",
-        type=parse_subset,
-        help="If provided, will only use a subset of the existing dataset file(s). Accepts int (the amount of samples) or float (0 < x <= 1, a percentage of the available samples).",
-    )
-    parser.add_argument(
+    run_parser.add_argument(
         "--resynthesis", action="store_true", help="If provided will use resynthesis."
     )
-    parser.add_argument(
+    run_parser.add_argument(
         "--error",
         type=float,
         help="Maximum error threshold to stop iterations. (0 < x <= 1).",
     )
-    parser.add_argument(
+    run_parser.add_argument(
         "--max-iters",
         type=int,
         help="Maximum number of iterations for iterative methods.",
     )
-    parser.add_argument(
-        "--save",
-        type=str,
-        help="Path to a file to save the run's configuration and progress.",
+    run_parser.add_argument(
+        "--max-depth", type=int, help="Max depth for decision_tree method"
     )
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="If provided, will resume from the existing save file.",
-    )
-    parser.add_argument(
-        "--max-depth", nargs="+", type=int, help="Max depth for decision_tree method"
-    )
-    parser.add_argument(
+    run_parser.add_argument(
         "--one-tree-per-output",
         action="store_true",
         help="Use one tree per output for decision_tree",
     )
-    parser.add_argument(
+    run_parser.add_argument(
         "--show-progress", action="store_true", help="Show simulation progress"
     )
-    args = parser.parse_args()
+    run_parser.add_argument(
+        "--csv",
+        type=str,
+        help="""Path to a file to save the output in csv format.
+        If the file doesn't exist, it will be created, if it exists it will be appended to.
+        The output will be given as a single line with the following columns:
+            method, circuit, flag1, flag2, ...,  metric1, metric2, ...""",
+    )
 
-    # number of circuits
-    n = len(args.circuit)
 
-    def check_list[T](name: str, lst: List[T]) -> T | List[T]:
-        ln = len(lst)
-        if ln == 1:
-            return lst[0]
-        elif ln == n:
-            return lst
-        else:
-            if n == 1:
-                parser.error(
-                    f"--{name} only accepts 1 value when only 1 circuit is given, got {ln} values"
-                )
-            else:
-                parser.error(f"--{name} requires 1 or {n} values, got {ln}")
+def generate_arguments(generate_parser):
+    """
+    Adds the arguments to the 'generate' subcomand parser
+    """
+    generate_parser.add_argument("circuit", help="Verilog circuit file.")
+    generate_parser.add_argument("dataset", help="Dataset file to generate.")
+    generate_parser.add_argument(
+        "size",
+        type=parse_generate,
+        help="""The size of the dataset.
+        Accepts an int (x > 0, a set amount of samples), or a float (0 < x <= 1, a of the total amount of inputs possible).
+        Note that for big circuits, like those with 32 input bits or more, generating a large fraction of the possible inputs might take a long time, due to the amount of possible inputs growing exponentially (2^n).
+        """,
+    )
 
-    # align lists
-    args.circuit = check_list("circuit", args.circuit)
-    args.dataset = check_list("dataset", args.dataset)
+def generate_dataset(args: argparse.Namespace):
+    circuit = Circuit(args.circuit, TECH)
 
-    if args.generate:
-        args.generate = check_list("generate", args.generate)
-    if args.subset:
-        args.subset = check_list("subset", args.subset)
+    size = args.size
+    if isinstance(size, int):
+        if not size > 0:
+            raise argparse.ArgumentTypeError(
+                f"Dataset size must be greater than 0: {size}")
 
-    if args.max_depth:
-        args.max_depth = check_list("max-depth", args.max_depth)
+    if isinstance(size, float):
+        if not (0 < size <= 1.0):
+            raise argparse.ArgumentTypeError(
+                f"Dataset size must be greater than 0: {size}")
 
-    # exclusivity checks
-    if args.generate and args.subset:
-        parser.error("Cannot specify both --generate and --subset")
+        max_inputs = 2**(len(circuit.inputs))
+        size = round(max_inputs*size)
 
-    if args.resume:
-        if not args.save:
-            parser.error("--save is required when --resume is set")
-        if not os.path.isfile(args.save):
-            parser.error(f"Save file does not exist: {args.save}")
-
-    # instantiate config
-    try:
-        config = ApproxSynthesisConfig(
-            method=args.method,
-            circuit=args.circuit,
-            dataset=args.dataset,
-            generate=args.generate,
-            subset=args.subset,
-            resynthesis=args.resynthesis,
-            error=args.error,
-            max_iters=args.max_iters,
-            save=args.save,
-            resume=args.resume,
-            max_depth=args.max_depth,
-            one_tree_per_output=args.one_tree_per_output,
-            show_progress=args.show_progress,
-        )
-    except ValueError as e:
-        parser.error(str(e))
-
-    print("Configuration loaded successfully")
-    print(config)
+    circuit.generate_dataset(args.dataset, size)
 
 
 if __name__ == "__main__":

@@ -55,8 +55,8 @@ class Circuit:
         self.rtl_file = rtl
         self.tech_file = tech
         self.topmodule = rtl.split('/')[-1].replace(".v","")
-        self.netl_file = synthesis (rtl, tech, self.topmodule)
-        self.technology = Technology(tech)
+        self.netl_file = synthesis (rtl, self.tech_file, self.topmodule)
+        self.technology = Technology(self.tech_file)
         # extract the usefull attributes of netlist
         netlist = Netlist(self.netl_file, self.technology)
         self.netl_root = netlist.root
