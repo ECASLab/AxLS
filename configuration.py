@@ -24,6 +24,7 @@ class AlsMethod(str, Enum):
 
 
 class Metric(str, Enum):
+    HAMMING_DISTANCE = "hd"
     MEAN_ERROR_DISTANCE = "med"
     WORST_CASE_ERROR = "wce"
     MEAN_RELATIVE_ERROR_DISTANCE = "mred"
