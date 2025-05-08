@@ -522,7 +522,8 @@ class Circuit:
 
         return
 
-    def simulate_and_compute_error (self, testbench, metric, exact_output, new_output):
+
+    def simulate(self, testbench, approximate_output):
         '''
         Simulates the actual circuit tree (with deletions)
         Creates an executable using icarus, end then execute it to obtain the
@@ -532,26 +533,11 @@ class Circuit:
         ----------
         testbench : string
             path to the testbench file
-        metric : string
-            equation to compute the error
-            options med, wce, wcre,mred, msed
-        exact_output : string
-            Path to the output file of the original exact circuit to compare
-            against. This file can be created with the `exact_output` method.
-        new_output : string
+        approximate_output : string
             Path to the output file where simulation results will be written.
             The user must provide the full file path and name. If the file
             exists, it will be overwritten.
-        clean : bool
-            if true, deletes all the generated files
-
-        Returns
-        -------
-        float
-            error of the current circuit tree
         '''
-
-
         name = get_name(5)
         rtl = self.write_to_disk(name)
 
@@ -573,12 +559,41 @@ class Circuit:
         system(f"cd \"{out}\"; ./{top}")
         os.chdir(cwd)
 
-        rename(out + "/output.txt", new_output)
-
-        error = compute_error(metric, exact_output, new_output)
+        rename(out + "/output.txt", approximate_output)
 
         remove(rtl)
         remove(f"{out}/{top}")
+
+
+    def simulate_and_compute_error (self, testbench, exact_output, new_output, metric):
+        '''
+        Simulates the actual circuit tree (with deletions)
+        Creates an executable using icarus, end then execute it to obtain the
+        output of the testbench
+
+        Parameters
+        ----------
+        testbench : string
+            path to the testbench file
+        exact_output : string
+            Path to the output file of the original exact circuit to compare
+            against. This file can be created with the `exact_output` method.
+        new_output : string
+            Path to the output file where simulation results will be written.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
+        metric : string
+            equation to compute the error
+            options med, wce, wcre,mred, msed
+
+        Returns
+        -------
+        float
+            error of the current circuit tree
+        '''
+        self.simulate(testbench, new_output)
+
+        error = compute_error(metric, exact_output, new_output)
 
         return error
 
