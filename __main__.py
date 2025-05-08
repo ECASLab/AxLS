@@ -107,7 +107,7 @@ def run_arguments(run_parser):
     run_parser.add_argument(
         "--error",
         type=float,
-        help="Maximum error threshold to stop iterations. (0 < x <= 1).",
+        help="Maximum error threshold to stop iterations. (0 < x <= 1). The error used is Mean Relative Error Distance.",
     )
     run_parser.add_argument(
         "--max-iters",
