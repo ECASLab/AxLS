@@ -30,6 +30,25 @@ class Metric(str, Enum):
     MEAN_RELATIVE_ERROR_DISTANCE = "mred"
     MEAN_SQUARED_ERROR_DISTANCE = "msed"
     ALS_TIME = "time"
+    AREA = "area"
+
+
+    def to_user_friendly_display(self, value: float) -> str:
+        """
+        Formats the value to a user friendly string format for display.
+        For example, the AREA metric is a percentage value, so it's formatted as
+        such.
+        """
+        match self:
+            # Percentage metrics
+            case Metric.MEAN_RELATIVE_ERROR_DISTANCE | Metric.AREA:
+                return f"{round(value*100, 2)}%"
+            case Metric.ALS_TIME:
+                return f"{round(value, 2)} s"
+            # No special handling except rounding
+            case _:
+                return str(round(value, 2))
+
 
 
 # List of iterative methods.
@@ -65,6 +84,8 @@ class ApproxSynthesisConfig:
 
     metrics : list[Metric | str]
         Metrics to calculate for the execution.
+        The time metric is given in seconds, the area metric is given as a % of
+        the area of the original circuit.
 
     resynthesis : bool, default=False
         Whether to use resynthesis.
