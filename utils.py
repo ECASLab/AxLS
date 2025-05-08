@@ -107,9 +107,12 @@ def read_dataset(filename: str, base: int, max_lines: None | int =None) -> List[
     """
     with open(filename, "r") as f:
         if max_lines is not None:
-            return [
+            values = [
                 [int(x, base) for x in line.split()]
                 for _, line in zip(range(max_lines), f)
             ]
         else:
-            return [[int(x, base) for x in line.split()] for line in f]
+            values = [[int(x, base) for x in line.split()] for line in f]
+
+        # Filter out empty lines
+        return [value for value in values if value]
