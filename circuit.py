@@ -496,7 +496,10 @@ class Circuit:
         top = self.topmodule
         current_dir=os.path.dirname(__file__)
         tech = f"{current_dir}/templates/" + self.tech_file
-        out = self.output_folder
+
+        # Executable is ran from the testbench folder, because the path to the
+        # dataset is relative to the testbench file.
+        out = os.path.dirname(testbench)
 
         """Better to temporarily change cwd when executing iverilog"""
         cwd=os.getcwd()
@@ -540,7 +543,10 @@ class Circuit:
 
         top = self.topmodule
         tech = "./templates/" + self.tech_file
-        out = self.output_folder
+
+        # Executable is ran from the testbench folder, because the path to the
+        # dataset is relative to the testbench file.
+        out = os.path.dirname(testbench)
 
         """Better to temporarily change cwd when executing iverilog"""
         cwd=os.getcwd()
@@ -662,7 +668,7 @@ class Circuit:
 
         return
 
-    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=None, show_progress=False):
+    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=None, show_progress=True):
         '''
         Writes a basic testbench for the circuit.
 
