@@ -1,3 +1,4 @@
+from enum import Enum
 import numpy as np
 
 def extract_numbers(filename):
@@ -33,7 +34,7 @@ def compute_error(metric, original, approximate):
     ----------
     metric : string
         equation to measure the error
-        options med, wce, wcre,mred, msed
+        options med, wce, mred, msed
     original : string
         path to the original results text file
     approximate : string
