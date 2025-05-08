@@ -1,4 +1,5 @@
 import argparse
+from typing import List
 from circuit import Circuit
 from configuration import ApproxSynthesisConfig, AlsMethod, Metric
 
@@ -12,7 +13,8 @@ from configuration import ApproxSynthesisConfig, AlsMethod, Metric
 #   - If we want to let users provide custom tech libraries through optional
 #     flags we'll need to make Circuit accept arbitrary paths to the needed tech
 #     files.
-TECH="NanGate15nm"
+TECH = "NanGate15nm"
+
 
 def parse_generate(value):
     try:
@@ -24,6 +26,7 @@ def parse_generate(value):
             raise argparse.ArgumentTypeError(
                 f"Invalid generate_dataset value: {value}. Must be int or float."
             )
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -50,10 +53,16 @@ def main():
     args = parser.parse_args()
 
     if args.subcommand == "run":
+        metrics: List[str] = args.metrics
+        if len(metrics) == 0:
+            metrics = [ Metric.MEAN_RELATIVE_ERROR_DISTANCE ]
+
         try:
+            circuit = Circuit(args.circuit, TECH)
             config = ApproxSynthesisConfig(
                 method=args.method,
-                circuit=args.circuit,
+                circuit=circuit,
+                metrics=args.metrics,
                 dataset=args.dataset,
                 resynthesis=args.resynthesis,
                 error=args.error,
@@ -87,10 +96,10 @@ def run_arguments(run_parser):
     run_parser.add_argument("dataset", help="Dataset file to run simulations with.")
     run_parser.add_argument(
         "metrics",
-        nargs="+",
+        nargs="*",
         choices=[m.value for m in Metric],
         # TODO: Add docs about what each metric is
-        help="Metrics to calculate, at least one must be given.",
+        help="Metrics to calculate, defaults to mred.",
     )
     run_parser.add_argument(
         "--resynthesis", action="store_true", help="If provided will use resynthesis."
@@ -141,6 +150,7 @@ def generate_arguments(generate_parser):
         """,
     )
 
+
 def generate_dataset(args: argparse.Namespace):
     circuit = Circuit(args.circuit, TECH)
 
@@ -148,15 +158,17 @@ def generate_dataset(args: argparse.Namespace):
     if isinstance(size, int):
         if not size > 0:
             raise argparse.ArgumentTypeError(
-                f"Dataset size must be greater than 0: {size}")
+                f"Dataset size must be greater than 0: {size}"
+            )
 
     if isinstance(size, float):
         if not (0 < size <= 1.0):
             raise argparse.ArgumentTypeError(
-                f"Dataset size must be greater than 0: {size}")
+                f"Dataset size must be greater than 0: {size}"
+            )
 
-        max_inputs = 2**(len(circuit.inputs))
-        size = round(max_inputs*size)
+        max_inputs = 2 ** (len(circuit.inputs))
+        size = round(max_inputs * size)
 
     circuit.generate_dataset(args.dataset, size)
 

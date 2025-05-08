@@ -1,8 +1,10 @@
 import os
 
 from enum import Enum
+from typing import List
 
 from circuit import Circuit
+
 
 class AlsMethod(str, Enum):
     CONSTANT_INPUTS = "inconst"
@@ -17,6 +19,7 @@ class AlsMethod(str, Enum):
 
     def __str__(self):
         return self.value
+
 
 class Metric(str, Enum):
     MEAN_ERROR_DISTANCE = "med"
@@ -45,7 +48,7 @@ class ApproxSynthesisConfig:
 
     Parameters
     ----------
-    method : AlsMethod
+    method : AlsMethod | str
         One of the supported methods. Can use the AlsMethod enum or one of the
         following string names: 'inconst', 'outconst', 'probrun',
         'significance', 'ccarving', or 'decision_tree'.
@@ -56,6 +59,9 @@ class ApproxSynthesisConfig:
     dataset : str
         Path to the dataset file.
         TODO: Document dataset file format.
+
+    metrics : List[str]
+        Metrics to calculate for the execution.
 
     resynthesis : bool, default=False
         Whether to use resynthesis.
@@ -83,6 +89,7 @@ class ApproxSynthesisConfig:
     method: AlsMethod
     circuit: Circuit
     dataset: str
+    metrics: List[Metric]
     resynthesis: bool
     error: float | None
     max_iters: int | None
@@ -92,9 +99,10 @@ class ApproxSynthesisConfig:
 
     def __init__(
         self,
-        method: AlsMethod,
+        method: AlsMethod | str,
         circuit: Circuit,
         dataset: str,
+        metrics: List[Metric | str],
         resynthesis: bool,
         error: float | None,
         max_iters: int | None,
@@ -113,6 +121,7 @@ class ApproxSynthesisConfig:
         self.method = _validate_method(method)
         self.circuit = circuit
         self.dataset = _validate_dataset(dataset)
+        self.metrics = _validate_metrics(metrics)
 
         self.resynthesis = resynthesis
         self.error = _validate_error(error, self.method, self.resynthesis)
@@ -146,6 +155,34 @@ def _validate_method(method: AlsMethod | str) -> AlsMethod:
             )
 
     return method
+
+
+def _validate_metrics(metrics: List[str | Metric]) -> List[Metric]:
+    """
+    Validates the metrics.
+
+    If a metric is given as a string, this functions tries to convert it to a
+    Metric enum.
+    Raises a ValueError if the metric name is invalid.
+
+    Ensures consistency for downstream logic by enforcing enum usage.
+    """
+
+    result_metrics: List[Metric] = []
+
+    for metric in metrics:
+        if isinstance(metric, str):
+            try:
+                result_metrics.append(Metric(metric))
+            except ValueError:
+                available_metrics = ", ".join([metric.value for metric in Metric])
+                raise ValueError(
+                    f"{metric} is not a valid {Metric.__name__}. Available metrics are: {available_metrics}"
+                )
+        else:
+            result_metrics.append(metric)
+
+    return result_metrics
 
 
 def _validate_dataset(
