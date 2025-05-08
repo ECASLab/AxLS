@@ -70,6 +70,8 @@ class ApproxSynthesisConfig:
         The maximum error threshold permitted. Required for iterative methods,
         like pruning methods or ML methods with resynthesis.
 
+        The error used is the Mean Relative Error Distance.
+
     max_iters : int, optional
         Maximum amount of iterations to execute. Used in iterative methods,
         like pruning methods or ML methods with resynthesis.
