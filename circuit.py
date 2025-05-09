@@ -315,15 +315,15 @@ class Circuit:
             for wire in self.get_circuit_wires():
                 if wire not in to_be_deleted:
                     writeln(netlist_file, f"\twire {wire};")
-            used_outputs=[]
+            used_ports=[]
             for output in self.raw_outputs:
-                if output not in used_outputs:
+                if output not in used_ports:
                     writeln(netlist_file, "\t" + output)
-                    used_outputs.append(output)
-            for output in self.raw_inputs:
-                if output not in used_outputs:
-                    writeln(netlist_file, "\t" + output)
-                    used_outputs.append(output)
+                    used_ports.append(output)
+            for input in self.raw_inputs:
+                if input not in used_ports:
+                    writeln(netlist_file, "\t" + input)
+                    used_ports.append(input)
 
             for node_var in self.get_circuit_nodes():
                 if node_var not in nodes_to_delete:
