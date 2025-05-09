@@ -135,7 +135,7 @@ def run_arguments(run_parser):
         help="Use one tree per output for decision_tree",
     )
     run_parser.add_argument(
-        "--show-progress", action="store_true", help="Show simulation progress"
+        "--show-progress", action="store_true", help="Show the progress of simulations executed for the ALS."
     )
     run_parser.add_argument(
         "--csv",
