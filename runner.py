@@ -24,7 +24,8 @@ EXACT_OUTPUT = f"{BUILD_DIR}/.exact_output"
 APPROX_OUTPUT = f"{BUILD_DIR}/.approx_output"
 RESYNTH_OUTPUT = f"{BUILD_DIR}/.resynth_output"
 
-TB = f"{BUILD_DIR}/.tb.v"
+EXACT_TB = f"{BUILD_DIR}/.exact_tb.v"
+APPROX_TB = f"{BUILD_DIR}/.approx_tb.v"
 
 VCD = f"{BUILD_DIR}/.vcd"
 SAIF = f"{BUILD_DIR}/.saif"
@@ -52,8 +53,10 @@ def run(config: ApproxSynthesisConfig) -> Results:
     if not os.path.exists(BUILD_DIR):
         os.makedirs(BUILD_DIR)
 
-    config.circuit.write_tb(TB, config.dataset, show_progress=config.show_progress)
-    config.circuit.exact_output(TB, EXACT_OUTPUT)
+    config.circuit.write_tb(
+        EXACT_TB, config.dataset, show_progress=config.show_progress
+    )
+    config.circuit.exact_output(EXACT_TB, EXACT_OUTPUT)
 
     # The benchmark functions should return the final approximated circuit and
     # also carry out the final simulation to generate the APPROX_OUTPUT that
@@ -154,12 +157,18 @@ def _run_decision_tree(config: ApproxSynthesisConfig) -> Circuit:
         APPROX_RTL, exact_circuit.tech_file, topmodule=exact_circuit.topmodule
     )
 
+    tree_circuit.write_tb(
+        APPROX_TB,
+        config.dataset,
+        show_progress=config.show_progress,
+    )
+
     if not config.resynthesis:
-        tree_circuit.simulate(TB, APPROX_OUTPUT)
+        tree_circuit.simulate(APPROX_TB, APPROX_OUTPUT)
 
     else:
         tree_circuit.resynth()
-        tree_circuit.simulate(TB, APPROX_OUTPUT)
+        tree_circuit.simulate(APPROX_TB, APPROX_OUTPUT)
         error = compute_error(
             Metric.MEAN_RELATIVE_ERROR_DISTANCE, EXACT_OUTPUT, APPROX_OUTPUT
         )
@@ -184,7 +193,7 @@ def _run_decision_tree(config: ApproxSynthesisConfig) -> Circuit:
             resynth_circuit = Circuit(
                 RESYNTH_RTL, exact_circuit.tech_file, topmodule=exact_circuit.topmodule
             )
-            resynth_circuit.simulate(TB, RESYNTH_OUTPUT)
+            resynth_circuit.simulate(APPROX_TB, RESYNTH_OUTPUT)
 
             error = compute_error(
                 Metric.MEAN_RELATIVE_ERROR_DISTANCE, EXACT_OUTPUT, RESYNTH_OUTPUT
