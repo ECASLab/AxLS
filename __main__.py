@@ -1,4 +1,5 @@
 import argparse
+import os
 from circuit import Circuit
 from configuration import ApproxSynthesisConfig, AlsMethod, Metric
 from runner import run
@@ -56,6 +57,9 @@ def main():
         metrics: list[str] = args.metrics
         if len(metrics) == 0:
             metrics = [Metric.MEAN_RELATIVE_ERROR_DISTANCE, Metric.ALS_TIME]
+
+        if not os.path.isfile(args.circuit):
+            parser.error(f"The path given for the circuit '{args.circuit}' does not exist.")
 
         try:
             circuit = Circuit(args.circuit, TECH)
