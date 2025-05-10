@@ -808,11 +808,11 @@ class Circuit:
              f'  #{delay}\n' \
              f'  $fwrite(file, "'
         for o in range(len(outputs_info.keys())):
-            text=f'{text}%d\\n '
-        text=f'{text}",'
-        for o in list(outputs_info.keys())[::-1][0:-1]:
+            text=f'{text}%d '
+        text=f'{text}\\n",'
+        for o in list(outputs_info.keys())[0:-1]:
             text= f'{text}{o},'
-        text= f'{text}{list(outputs_info.keys())[0]});\n'
+        text= f'{text}{list(outputs_info.keys())[-1]});\n'
 
         if show_progress:
             text +=f'  $display("-- Progress: %d/{iterations} --",i+1);\n'

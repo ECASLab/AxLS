@@ -52,12 +52,12 @@ class Netlist:
         with open(netl_file, 'r') as circuit_file:
             content = circuit_file.read()
 
-        self.raw_outputs, self.circuit_outputs = self.get_outputs(content)
-        self.raw_inputs, self.circuit_inputs = self.get_inputs(content)
-
         expreg = r'module [a-zA-Z0-9_]*\s*\(([\s\S]+?)\);'
         parameters = re.search(expreg,content)
         self.raw_parameters = re.sub('\n','',parameters.group(1))
+
+        self.raw_outputs, self.circuit_outputs = self.get_outputs(content, self.raw_parameters)
+        self.raw_inputs, self.circuit_inputs = self.get_inputs(content, self.raw_parameters)
 
         assigns = parse_assigns(content)
         for a in assigns:
@@ -156,24 +156,31 @@ class Netlist:
         return root
 
 
-    def get_inputs(self, netlist_rtl):
+    def get_inputs(self, netlist_rtl, raw_parameters):
         '''
-        Extracts the input variables of the circuit
-        TODO: support one bit variables
+        Extracts the circuit's input variables.
 
-        The `circuit_inputs` will be returned from MSB -> LSB. This is important
-        to provide the inputs in the correct order to methods that map a circuit
-        representation to a Verilog format, like the Decision Tree method.
+        Inputs are returned in two ways:
+        - `circuit_inputs`: expanded, sorted MSB→LSB, and follow the order in `raw_parameters`.
+        - `raw_inputs`: unexpanded lines, sorted to match the same order.
+
+        This ordering ensures compatibility with Verilog-generating methods like
+        the Decision Tree, which expect to receive bit-accurate and positionally
+        correct inputs in order to replicate them.
+
+        TODO: support one bit variables
 
         Parameters
         ----------
-        netlist_rtl : string
-            content of the netlist file
+        netlist_rtl : str
+            Content of the netlist file.
+        raw_parameters : str
+            Module's parameter list string.
 
         Returns
         -------
-        array
-            list of circuit intputs
+        tuple[list[str], list[str]]
+            raw_inputs and circuit_inputs
         '''
         raw_inputs = []
         circuit_inputs = []
@@ -193,28 +200,38 @@ class Netlist:
             else:
                 circuit_inputs.append(f"{i[3]}")
                 raw_inputs.append(f"input {i[3]};")
+
+        circuit_inputs = sort_expanded_vars(circuit_inputs, raw_parameters)
+        raw_inputs = sort_raw_vars(raw_inputs, raw_parameters)
         return raw_inputs, circuit_inputs
 
 
-    def get_outputs(self, netlist_rtl):
+    def get_outputs(self, netlist_rtl, raw_parameters):
         '''
-        Extracts the output variables of the circuit
-        TODO: support one bit variables
+        Extracts the circuit's output variables.
 
-        The `circuit_outputs` will be returned from MSB -> LSB. This is
-        important to provide the outputs in the correct order to methods that
-        map a circuit representation to a Verilog format, like the Decision Tree
-        method.
+        Outputs are returned in two ways:
+        - `circuit_outputs`: expanded, sorted MSB→LSB, and follow the order in `raw_parameters`.
+        - `raw_outputs`: unexpanded lines, sorted to match the same order.
+
+        This ordering ensures compatibility with Verilog-generating methods like
+        the Decision Tree, which expect to receive bit-accurate and positionally
+        correct inputs in order to replicate them.
+
+        TODO: support one bit variables
 
         Parameters
         ----------
         netlist_rtl : string
             content of the netlist file
+        raw_parameters : str
+            Module's parameter list string.
+
 
         Returns
         -------
-        array
-            list of circuit outputs
+        tuple[list[str], list[str]]
+            raw_outputs and circuit_outputs
         '''
         raw_outputs = []
         circuit_outputs = []
@@ -234,6 +251,9 @@ class Netlist:
             else:
                 circuit_outputs.append(f"{o[3]}")
                 raw_outputs.append(f"output {o[3]};")
+
+        circuit_outputs = sort_expanded_vars(circuit_outputs, raw_parameters)
+        raw_outputs = sort_raw_vars(raw_outputs, raw_parameters)
         return raw_outputs, circuit_outputs
 
 def expand_range(name):
@@ -364,3 +384,75 @@ def parse_assigns(content):
             raise ValueError(f"Bit width mismatch: LHS {lhs_bits} != RHS {rhs_bits}")
         result.extend(zip(lhs_bits, rhs_bits))
     return result
+
+def extract_param_names(raw_parameters):
+    """
+    Extracts the names of input/output/inout parameters from a module definition string.
+
+    Parameters
+    ----------
+    raw_parameters : str
+        String of the module's parameter list, e.g. "input a, output [3:0] b".
+
+    Returns
+    -------
+    list[str]
+        Ordered list of parameter names as they appear in the string.
+    """
+    return re.findall(
+        r"\b(?:input|output|inout)?\s*(?:\[.*?\]\s*)?(\w+)", raw_parameters
+    )
+
+
+def sort_expanded_vars(expanded_vars, raw_parameters):
+    """
+    Sorts a list of expanded signal names (e.g. in[3], in[2], ..., in[0])
+    based on their order in the module definition and from MSB to LSB.
+
+    Parameters
+    ----------
+    expanded_vars : list[str]
+        List of bit-level signal names.
+    raw_parameters : str
+        Module parameter list string for determining signal order.
+
+    Returns
+    -------
+    list[str]
+        Sorted list of expanded variables.
+    """
+    param_order = extract_param_names(raw_parameters)
+    order_map = {name: i for i, name in enumerate(param_order)}
+
+    def sort_key(var):
+        base, idx = re.match(r"(\w+)(?:\[(\d+)\])?", var).groups()
+        return (order_map[base], -int(idx) if idx else 0)
+
+    return sorted(expanded_vars, key=sort_key)
+
+
+def sort_raw_vars(raw_list, raw_parameters):
+    """
+    Sorts unexpanded input/output/inout declarations by the order of their
+    parameter names in the module definition.
+
+    Parameters
+    ----------
+    raw_list : list[str]
+        List of unexpanded variable declarations, e.g. "input [3:0] a;".
+    raw_parameters : str
+        Module parameter list string for determining signal order.
+
+    Returns
+    -------
+    list[str]
+        Sorted list of raw declarations.
+    """
+    param_order = extract_param_names(raw_parameters)
+    order_map = {name: i for i, name in enumerate(param_order)}
+
+    def sort_key(line):
+        match = re.search(r"(\w+)\s*;", line)
+        return order_map.get(match.group(1), float("inf")) if match else float("inf")
+
+    return sorted(raw_list, key=sort_key)
