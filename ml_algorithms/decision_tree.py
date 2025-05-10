@@ -269,16 +269,17 @@ def _tree_2_equation(
 
     Returns
     -------
-    str or None
-        A Boolean expression string for the subtree rooted at `node`, or None if
+    str or int
+        A Boolean expression string for the subtree rooted at `node`, or an int
+        if the output is constant for the subtree (0 or 1)
         the subtree always evaluates to 0.
     """
     if tree.feature[node] == -2:  # Leaf node
         result = tree.value[node][output].argmax()
         if result == 0:
-            return None
+            return 0
         else:
-            return "LEAF_NODE_1"
+            return 1
 
     else:  # Internal node
         left_result = _tree_2_equation(
@@ -294,24 +295,24 @@ def _tree_2_equation(
         negated_input = f"!{input}"
 
         match (left_result, right_result):
-            case (None, None):
-                return None
+            case (0, 0):
+                return 0
 
-            case (None, "LEAF_NODE_1"):
+            case (0, 1):
                 return input
-            case ("LEAF_NODE_1", None):
+            case (1, 0):
                 return negated_input
-            case ("LEAF_NODE_1", "LEAF_NODE_1"):
-                return "LEAF_NODE_1"
+            case (1, 1):
+                return 1
 
-            case (str(left), "LEAF_NODE_1"):
+            case (str(left), 1):
                 return f"{input} | ({left})"
-            case ("LEAF_NODE_1", str(right)):
+            case (1, str(right)):
                 return f"{negated_input} | ({right})"
 
-            case (str(left), None):
+            case (str(left), 0):
                 return f"{negated_input} & ({left})"
-            case (None, str(right)):
+            case (0, str(right)):
                 return f"{input} & ({right})"
             case (str(left), str(right)):
                 return f"({negated_input} & ({left})) | ({input} & ({right}))"
