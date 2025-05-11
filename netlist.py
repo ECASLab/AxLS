@@ -256,44 +256,9 @@ class Netlist:
         raw_outputs = sort_raw_vars(raw_outputs, raw_parameters)
         return raw_outputs, circuit_outputs
 
-def expand_range(name):
-    '''
-    Expands a Verilog-style bit range expression into a list of individual bits.
-
-    Parameters
-    ----------
-    name : string
-        A string like "a[3:0]" or "b[7]".
-
-    Returns
-    -------
-    List[string]
-        A list of strings like ["a[3]", "a[2]", "a[1]", "a[0]"].
-
-    Examples
-    -------
-        >>> expand_range("a[3:1]")
-        ['a[3]', 'a[2]', 'a[1]']
-
-        >>> expand_range("x[1:3]")
-        ['x[1]', 'x[2]', 'x[3]']
-
-        >>> expand_range("y[5]")
-        ['y[5]']
-
-        >>> expand_range("z")
-        ['z']
-    '''
-    m = re.match(r'(\w+)\[(\d+):(\d+)\]', name)
-    if not m:
-        return [name]
-    var, hi, lo = m.groups()
-    hi, lo = int(hi), int(lo)
-    step = -1 if hi > lo else 1
-    return [f"{var}[{i}]" for i in range(hi, lo + step, step)]
 
 def expand_concat(expr):
-    '''
+    """
     Expands a Verilog-style concatenation expression into a flat list of
     individual bits.
 
@@ -320,17 +285,101 @@ def expand_concat(expr):
 
         >>> expand_concat("b[1:0]")
         ['b[1]', 'b[0]']
-    '''
+    """
     expr = expr.strip()
-    if expr.startswith('{') and expr.endswith('}'):
+    if expr.startswith("{") and expr.endswith("}"):
         inner = expr[1:-1]
-        parts = [p.strip() for p in inner.split(',')]
+        parts = [p.strip() for p in inner.split(",")]
         bits = []
         for p in parts:
             bits.extend(expand_range(p))
         return bits
     else:
         return expand_range(expr)
+
+
+def expand_range(expr):
+    """
+    Expands a Verilog-style range expression into a flat list of individual bits
+    or constants.
+
+    Parameters
+    ----------
+    name : string
+        A Verilog signal, range or constant
+
+    Returns
+    -------
+    List[string]
+        A list of strings or bits.
+
+    Examples
+    -------
+        >>> expand_range("a[3:1]")
+        ['a[3]', 'a[2]', 'a[1]']
+
+        >>> expand_range("x[1:3]")
+        ['x[1]', 'x[2]', 'x[3]']
+
+        >>> expand_range("y[5]")
+        ['y[5]']
+
+        >>> expand_range("z")
+        ['z']
+
+        >>> expand_range("4'hd")
+        [1, 1, 0, 1]
+    """
+    expr = expr.strip()
+    if "'" in expr:
+        return expand_constant(expr)
+    elif "[" in expr:
+        if ":" in expr:
+            base, range_part = expr.split("[")
+            range_part = range_part[:-1]
+            start, end = map(int, range_part.split(":"))
+            return [f"{base}[{i}]" for i in range(start, end - 1, -1)]
+        else:
+            return [expr]
+    else:
+        return [expr]
+
+
+def expand_constant(expr):
+    """
+    Expands a Verilog-style constant variable expression into a flat list of
+    individual bits.
+
+    Parameters
+    ----------
+    expr : string
+        A Verilog constant like "3'h6". Currently only supports hexadecimal
+        expressions, but that should be enough since that's how yosys assigns
+        constants.
+
+    Returns
+    -------
+    List[int]
+        A list of bits like [1, 1, 0].
+
+    Examples
+    -------
+        >>> expand_constant("1'h1")
+        [1]
+
+        >>> expand_constant("4'hd")
+        [1, 1, 0, 1]
+    """
+    size, value = expr.split("'h")
+    size = int(size)
+    value = value.lower()
+
+    int_value = int(value, 16)
+
+    bits = [(int_value >> i) & 1 for i in range(size - 1, -1, -1)]
+
+    return bits
+
 
 def parse_assigns(content):
     '''
@@ -374,7 +423,7 @@ def parse_assigns(content):
 
         assign out = { in1[0:1], in2[0:1] }
     '''
-    expreg = r'assign\s+(.*?)\s*=\s*(.*?);'
+    expreg = r"assign\s+(.*?)\s*=\s*(.*?);"
     assigns = re.findall(expreg, content)
     result = []
     for lhs, rhs in assigns:
@@ -384,6 +433,7 @@ def parse_assigns(content):
             raise ValueError(f"Bit width mismatch: LHS {lhs_bits} != RHS {rhs_bits}")
         result.extend(zip(lhs_bits, rhs_bits))
     return result
+
 
 def extract_param_names(raw_parameters):
     """
