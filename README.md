@@ -489,7 +489,10 @@ Note that this method requires installing the `scikit-learn` package, since it
 leverages its DT implementation.
 
 The following diagram gives a simplified view of how the method operates:
-<img src="images/decision_tree_method.png" alt="A diagram giving a rough overview of the steps explained below." width="500" />
+
+<p align="center">
+    <img src="images/decision_tree_method.png" alt="A diagram giving a rough overview of the steps explained below."/>
+</p>
 
 1. Import the `DecisionTreeCircuit` class, which wraps logic to train and
    convert scikit-learn DTs into Boolean circuits.
