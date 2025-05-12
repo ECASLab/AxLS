@@ -166,7 +166,7 @@ Mean Error Distance of approximate circuit with node _101_ deleted: 3.979
 from circuit import Circuit
 ```
 
-2. Some constants are required to define files and their corresponding path:
+2. We need the path to the verilog and saif files to create our `Circuit` object, we can define them with constants:
 
 ```python
 # verilog file of the circuit we want to approximate
@@ -176,7 +176,7 @@ RTL = "ALS-benchmark-circuits/BK_16b/BK_16b.v"
 SAIF = "ALS-benchmark-circuits/BK_16b/NanGate15nm/BK_16b.saif"
 ```
 
-3. When creating a `Circuit` object, the library parse every file and builds an XML tree with all the relevant information related with the circuit
+3. When creating a `Circuit` object, the library will parse the provided files and build an XML tree with all the relevant information of the circuit:
 
 ```python
 # Circuit creates a representation of the circuit using python objects
@@ -189,7 +189,7 @@ our_circuit = Circuit(RTL, "NanGate15nm", SAIF)
 print(our_circuit.get_circuit_xml())
 ```
 
-5. Or you can also print the circuit as an graph with `show()`
+5. Or you can also print the circuit as a graph with `show()`
 
 ```python
 our_circuit.show()

@@ -59,15 +59,9 @@ class Netlist:
         parameters = re.search(expreg,content)
         self.raw_parameters = re.sub('\n','',parameters.group(1))
 
-        # Support for `assign`s
-        # - Inputs mapped directly to outputs
-        # - Ports mapped to wires by Yosys
-        # - Constant assignments in resynth
-        expreg=r'assign (\S+)\s+=\s+(\S+);'
-        assigns=re.findall(expreg,content)
+        assigns = parse_assigns(content)
         for a in assigns:
             self.assignments.append(a)
-
 
         # iterate over every instanced module
         expreg = r'([a-zA-Z0-9_]+) (.+) \(([\n\s\t.a-zA-Z0-9\(\[\]\),_]*)\);'
@@ -232,3 +226,132 @@ class Netlist:
                 circuit_outputs.append(f"{o[3]}")
                 raw_outputs.append(f"output {o[3]};")
         return raw_outputs, circuit_outputs
+
+def expand_range(name):
+    '''
+    Expands a Verilog-style bit range expression into a list of individual bits.
+
+    Parameters
+    ----------
+    name : string
+        A string like "a[3:0]" or "b[7]".
+
+    Returns
+    -------
+    List[string]
+        A list of strings like ["a[3]", "a[2]", "a[1]", "a[0]"].
+
+    Examples
+    -------
+        >>> expand_range("a[3:1]")
+        ['a[3]', 'a[2]', 'a[1]']
+
+        >>> expand_range("x[1:3]")
+        ['x[1]', 'x[2]', 'x[3]']
+
+        >>> expand_range("y[5]")
+        ['y[5]']
+
+        >>> expand_range("z")
+        ['z']
+    '''
+    m = re.match(r'(\w+)\[(\d+):(\d+)\]', name)
+    if not m:
+        return [name]
+    var, hi, lo = m.groups()
+    hi, lo = int(hi), int(lo)
+    step = -1 if hi > lo else 1
+    return [f"{var}[{i}]" for i in range(hi, lo + step, step)]
+
+def expand_concat(expr):
+    '''
+    Expands a Verilog-style concatenation expression into a flat list of
+    individual bits.
+
+    Parameters
+    ----------
+    expr : string
+        A Verilog signal, range, or concatenation like "{a[3:0], b[1], c}".
+
+    Returns
+    -------
+    List[string]
+        A list of strings like ["a[3]", "a[2]", "a[1]", "a[0]", "b[1]", "c"].
+
+    Examples
+    -------
+        >>> expand_concat("{ a[2:1], b[0] }")
+        ['a[2]', 'a[1]', 'b[0]']
+
+        >>> expand_concat("{ x[1], y[3:2], z }")
+        ['x[1]', 'y[3]', 'y[2]', 'z']
+
+        >>> expand_concat("a[3]")
+        ['a[3]']
+
+        >>> expand_concat("b[1:0]")
+        ['b[1]', 'b[0]']
+    '''
+    expr = expr.strip()
+    if expr.startswith('{') and expr.endswith('}'):
+        inner = expr[1:-1]
+        parts = [p.strip() for p in inner.split(',')]
+        bits = []
+        for p in parts:
+            bits.extend(expand_range(p))
+        return bits
+    else:
+        return expand_range(expr)
+
+def parse_assigns(content):
+    '''
+    Parses Verilog assign statements and expands any bit ranges into individual
+    assignments.
+
+    The following cases can result in `assign`s:
+        - Inputs mapped directly to outputs
+        - Ports mapped to wires by Yosys
+        - Constant assignments in resynth
+
+    Parameters
+    ----------
+    content : string
+        A string containing one or more Verilog assign statements.
+
+    Returns
+    -------
+    List[Tuple[string, string]]
+        A list of (lhs, rhs) assignment pairs, one for each individual bit.
+
+    Examples
+    -------
+        >>> code = """
+        ... assign a[2] = b[2];
+        ... assign foo[1:0] = bar[3:2];
+        ... assign x = 0;
+        ... assign { out[4:3], out[0:1] } = { in1[3], in2[1:0], in3[2] };
+        ... """
+        >>> parse_assigns(code)
+        [('a[2]', 'b[2]'),
+         ('foo[1]', 'bar[3]'), ('foo[0]', 'bar[2]'),
+         ('x', '0'),
+         ('out[4]', 'in1[3]'), ('out[3]', 'in2[1]'), ('out[0]', 'in2[0]'), ('out[1]', 'in3[2]')
+        ]
+
+    TODO: This method can't handle range or concatenated assignments to full
+    variables. For example in the following case it will cause a "Bit width
+    mismatch" error even if `out` is a 4 bit variable, because it doesn't know
+    that:
+
+        assign out = { in1[0:1], in2[0:1] }
+    '''
+    expreg = r'assign\s+(.*?)\s*=\s*(.*?);'
+    assigns = re.findall(expreg, content)
+    result = []
+    for lhs, rhs in assigns:
+        lhs_bits = expand_concat(lhs)
+        rhs_bits = expand_concat(rhs)
+        if len(lhs_bits) != len(rhs_bits):
+            raise ValueError(f"Bit width mismatch: LHS {lhs_bits} != RHS {rhs_bits}")
+        result.extend(zip(lhs_bits, rhs_bits))
+    return result
