@@ -2,9 +2,11 @@ from collections.abc import Callable
 import csv
 import os
 import time
+from xml.etree import ElementTree
 from circuit import Circuit
 from circuiterror import compute_error
 from ml_algorithms.decision_tree import DecisionTreeCircuit
+from pruning_algorithms.inouts import GetInputs, GetOutputs
 from utils import read_dataset
 from configuration import AlsMethod, ApproxSynthesisConfig, Metric
 
@@ -22,7 +24,7 @@ RESYNTH_RTL = f"{BUILD_DIR}/.resynth.v"
 
 EXACT_OUTPUT = f"{BUILD_DIR}/.exact_output"
 APPROX_OUTPUT = f"{BUILD_DIR}/.approx_output"
-RESYNTH_OUTPUT = f"{BUILD_DIR}/.resynth_output"
+TEMP_OUTPUT = f"{BUILD_DIR}/.tmp_output"
 
 TB = f"{BUILD_DIR}/.tb.v"
 
@@ -52,9 +54,7 @@ def run(config: ApproxSynthesisConfig) -> Results:
     if not os.path.exists(BUILD_DIR):
         os.makedirs(BUILD_DIR)
 
-    config.circuit.write_tb(
-        TB, config.dataset, show_progress=config.show_progress
-    )
+    config.circuit.write_tb(TB, config.dataset, show_progress=config.show_progress)
     config.circuit.exact_output(TB, EXACT_OUTPUT)
 
     # The benchmark functions should return the final approximated circuit (for
@@ -96,6 +96,9 @@ def run(config: ApproxSynthesisConfig) -> Results:
     if Metric.ALS_TIME in config.metrics:
         elapsed_time = end_time - start_time
         results[Metric.ALS_TIME] = elapsed_time
+
+    # For debugging or checking the final output
+    approx_circuit.write_to_disk(APPROX_RTL)
 
     if config.csv:
         _write_results_to_csv(config, results)
@@ -186,27 +189,115 @@ def _run_decision_tree(config: ApproxSynthesisConfig) -> Circuit:
             resynth_circuit = Circuit(
                 RESYNTH_RTL, exact_circuit.tech_file, topmodule=exact_circuit.topmodule
             )
-            resynth_circuit.simulate(TB, RESYNTH_OUTPUT)
+            resynth_circuit.simulate(TB, TEMP_OUTPUT)
 
             error = compute_error(
-                Metric.MEAN_RELATIVE_ERROR_DISTANCE, EXACT_OUTPUT, RESYNTH_OUTPUT
+                Metric.MEAN_RELATIVE_ERROR_DISTANCE, EXACT_OUTPUT, TEMP_OUTPUT
             )
 
             if error > config.error:
                 return tree_circuit
             else:
-                os.replace(RESYNTH_OUTPUT, APPROX_OUTPUT)
+                os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
                 tree_circuit = resynth_circuit
 
     return tree_circuit
 
 
 def _run_constant_inputs(config: ApproxSynthesisConfig) -> Circuit:
-    return config.circuit  # TODO Implement method
+    return _run_constant_inputs_outputs(config, config.circuit.inputs, "inputs")
 
 
 def _run_constant_outputs(config: ApproxSynthesisConfig) -> Circuit:
-    return config.circuit  # TODO Implement method
+    return _run_constant_inputs_outputs(config, config.circuit.outputs, "outputs")
+
+
+def _run_constant_inputs_outputs(
+    config: ApproxSynthesisConfig, circuit_variables: list[str], inputs_or_outputs: str
+) -> Circuit:
+    """
+    The InOuts method accepts either a list of inputs or outputs to make
+    constant, and then returns a list of nodes that could be pruned.
+
+    The selection of which input/outputs to make constant is not part of the
+    InOuts method, so each user must select them under whichever criteria fits
+    their use case best.
+
+    For this runner execution, which must use a generic heuristic for any
+    circuit, we'll select the LSBs of each input/output to be constant. If we
+    manage to prune all the suggested nodes without going over the error
+    threshold or the max iterations then we can use the next LSB of each
+    input/output. For example, in a circuit with the input/outputs:
+
+        ["in1[2]", "in1[1]", "in1[0]", "in2[2]", "in2[1]", "in2[0]", cin]
+
+    We'll first prune the nodes suggested when ["in1[0]", "in2[0]", cin] are set
+    as constants. If we delete all the suggested nodes then we'll move on to the
+    nodes suggested when ["in1[0]", "in1[1]", "in2[0]", "in2[1]", cin] are
+    constants.
+    """
+    circuit = config.circuit
+
+    assert config.max_iters is not None, (
+        f"'max_iters' should be given when executing {config.method}"
+    )
+
+    assert config.error is not None, (
+        f"'error' should be given when executing {config.method}"
+    )
+
+    max_const_bit = 0
+    iteration = 0
+
+    while iteration < config.max_iters:
+        const_variables = _get_lsbs_up_to(circuit_variables, max_const_bit)
+        deletable_nodes: list[ElementTree.Element]
+
+        match inputs_or_outputs:
+            case "inputs":
+                deletable_nodes = GetInputs(circuit.netl_root, const_variables)
+            case "outputs":
+                deletable_nodes = GetOutputs(circuit.netl_root, const_variables)
+            case _:
+                raise ValueError("Invalid call to _run_constant_inputs_outputs")
+
+        # Filter Already deleted nodes
+        deletable_nodes = [
+            node for node in deletable_nodes if node.get("delete") != "yes"
+        ]
+
+        if len(deletable_nodes) == 0:
+            if set(const_variables) == set(circuit_variables):
+                # All variables have been set as const and all elected nodes
+                # have been deleted
+                return circuit
+            else:
+                max_const_bit += 1
+                continue
+
+        node_to_delete = deletable_nodes.pop(0)
+
+        print(f"Pruning node {node_to_delete.attrib['var']}")
+        node_to_delete.set("delete", "yes")
+
+        if config.resynthesis:
+            circuit.resynth()
+
+        error = circuit.simulate_and_compute_error(
+            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+        )
+
+        print(f"Pruned circuit error: {error}")
+
+        if iteration > 0 and error > config.error:
+            print("Error has overpassed threshold, undoing last prune\n")
+            node_to_delete.set("delete", "no")
+            break
+
+        iteration += 1
+        os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
+
+    return circuit
 
 
 def _run_probrun(config: ApproxSynthesisConfig) -> Circuit:
@@ -227,5 +318,53 @@ def _compute_error_metrics(config: ApproxSynthesisConfig) -> Results:
         if metric in _APPROXIMATION_ERROR_METRICS:
             error = compute_error(metric.value, EXACT_OUTPUT, APPROX_OUTPUT)
             result[metric] = error
+
+    return result
+
+
+def _get_lsbs_up_to(variables: list[str], bit_index: int) -> list[str]:
+    """
+    Get a list of circuit variables with bits up to a specified index.
+
+    Parameters
+    ----------
+    variables : list of str
+        A list of circuit variable strings, which may include bit indices in the format 'var[bit_index]' or just 'var'.
+    bit_index : int
+        The bit index up to which the variables should be included in the result.
+
+    Returns
+    -------
+    list of str
+        A list of variables that have a bit index less than or equal to the specified bit index.
+        If a variable does not have a bit index (e.g., 'cin'), it is included in the result.
+
+    Examples
+    --------
+    >>> variables = ["in1[2]", "in1[1]", "in1[0]", "in2[2]", "in2[1]", "in2[0]", "cin"]
+    >>> get_lsbs_up_to(variables, 0)
+    ['in1[0]', 'in2[0]', 'cin']
+
+    >>> get_lsbs_up_to(variables, 1)
+    ['in1[0]', 'in1[1]', 'in2[0]', 'in2[1]', 'cin']
+
+    >>> get_lsbs_up_to(["out[0]", "out[1]", "out[2]"], 0)
+    ['out[0]']
+    """
+    result = []
+    for var in variables:
+        # Check if the variable is a string and contains a bit index
+        if "[" in var and "]" in var:
+            # Extract the bit index from the variable string
+            start = var.index("[") + 1
+            end = var.index("]")
+            var_bit_index = int(var[start:end])
+
+            # Check if the variable's bit index is less than or equal to the specified bit index
+            if var_bit_index <= bit_index:
+                result.append(var)
+        else:
+            # If it's not a variable with a bit index, add it directly (e.g., cin)
+            result.append(var)
 
     return result

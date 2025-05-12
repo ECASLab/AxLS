@@ -328,6 +328,12 @@ def _validate_max_iters(
     ):
         raise ValueError(f"'max_iters' is required for {method} with resynthesis")
 
+    if max_iters is not None:
+        try:
+            return int(max_iters)
+        except ValueError:
+            raise ValueError("'max_iters' should be given as an integer")
+
 
 def _validate_max_depth(
     max_depth: int | None,
