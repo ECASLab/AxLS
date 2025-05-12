@@ -478,19 +478,21 @@ _082_ is 0 75% of the tim
 
 These algorithms train an ML model based on a circuit's inputs and outputs in
 order to learn a generalized version of the boolean function, then maps the
-model into an approximate circuit.
+model into an approximate circuit, fully replacing the original circuit.
 
-#### Decision Tree
+#### Decision Tree (DT)
 
-This method works by training a decision tree on the input and output data of
-a real circuit. Then synthesizing that decision tree into a verilog circuit.
+This method works by training a DT on the input and output data of
+a real circuit. Then synthesizing that DT into a verilog circuit.
 
 Note that this method requires installing the `scikit-learn` package, since it
-leverages its decision tree implementation.
+leverages its DT implementation.
 
-1. First, import the `DecisionTreeCircuit` class. It abstracts the logic
-necessary to train scikit classifier trees as boolean decision trees.
+The following diagram gives a simplified view of how the method operates:
+<img src="images/decision_tree_method.png" alt="A diagram giving a rough overview of the steps explained below." width="500" />
 
+1. Import the `DecisionTreeCircuit` class, which wraps logic to train and
+   convert scikit-learn DTs into Boolean circuits.
 
 ```python
 from ml_algorithms.decision_tree import DecisionTreeCircuit
@@ -503,11 +505,13 @@ from utils import read_dataset
 
 # Example with RCA_4b benchmark
 NAME = "RCA_4b"
-DATASET = f"ALS-benchmark-circuits/{NAME}/dataset"
+INPUT = f"ALS-benchmark-circuits/{NAME}/dataset"
 ORIGINAL_OUTPUT = f"ALS-benchmark-circuits/{NAME}/output0.txt"
 DATASET_SIZE = 1000
 
-inputs = read_dataset(DATASET, 16, DATASET_SIZE)
+# We use base 16 because input datasets are generated in hexadecimal by default
+inputs = read_dataset(INPUT, 16, DATASET_SIZE)
+# We use base 10 because a testbench outputs are written in decimal
 outputs = read_dataset(ORIGINAL_OUTPUT, 10, DATASET_SIZE)
 ```
 
@@ -516,21 +520,20 @@ If we need to generate the datasets first, we can do this with the `Circuit.gene
 ```python
 TB = f"ALS-benchmark-circuits/{NAME}/{NAME}_tb.v"
 
-original_circuit.generate_dataset(DATASET, DATASET_SIZE)
+original_circuit.generate_dataset(INPUT, DATASET_SIZE)
 original_circuit.exact_output(TB, ORIGINAL_OUTPUT)
 ```
 
-3. Train the decision tree model:
+3. Train the DT model:
 
 ```python
 clf = DecisionTreeCircuit(original_circuit.inputs, original_circuit.outputs, max_depth=4)
 clf.train(inputs, outputs)
 ```
 
-Here `max_depth` is an optional parameter to control the maximum depth of the
-tree. One can also pass any parameter accepted by the [sklearn.tree.DecisionTreeClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+`max_depth` controls tree complexity. You can also pass any valid [sklearn.tree.DecisionTreeClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html) kwargs.
 
-4. Synthesize the approximate circuit from the trained decision tree model:
+4. Synthesize the approximate circuit from the trained DT model:
 
 ```python
 APPROX_NAME = "tree_adder"
@@ -547,7 +550,7 @@ APPROX_OUTPUT = f"{APPROX_NAME}/output.txt"
 
 APPROX_TB = f"{APPROX_NAME}_tb.v"
 
-approx_circuit.write_tb(APPROX_TB, DATASET, DATASET_SIZE)
+approx_circuit.write_tb(APPROX_TB, INPUT, DATASET_SIZE)
 
 error = approx_circuit.simulate_and_compute_error(APPROX_TB, ORIGINAL_OUTPUT, APPROX_OUTPUT, "mred")
 
@@ -563,6 +566,9 @@ Mean Relative Error: 22.90%
 Original Area: 6.586368
 Approximate Area: 3.293184
 ```
+
+In this scenario, we have reduced the circuit's area in half, while only
+introducing around ~23% error.
 
 # Files and Folders
 
