@@ -9,6 +9,27 @@ Humberto Barrantes-García, student, Tecnológico de Costa Rica
 
 Roger Morales-Monge, student, Tecnológico de Costa Rica
 
+## Table of Contents
+
+1. [AxLS](#axls)
+2. [Authors](#authors)
+3. [Requirements](#requirements)
+   1. [Installing Yosys](#installing-yosys)
+   2. [Installing Icarus Verilog](#installing-icarus-verilog)
+   3. [Cloning benchmarks](#cloning-benchmarks)
+4. [Executing Demo](#executing-demo)
+5. [Using AxLS](#using-axls)
+   1. [Parsing a netlist](#parsing-a-netlist)
+   2. [Deleting a node](#deleting-a-node)
+   3. [Simulation and Error Estimation](#simulation-and-error-estimation)
+6. [ALS Algorithms](#als-algorithms)
+   1. [Pruning Algorithms](#pruning-algorithms)
+      - [InOuts](#inouts)
+      - [Pseudo-Probabilistic Pruning (ProbPrun)](#pseudo-probabilistic-pruning-probprun)
+   2. [ML Supervised Learning](#ml-supervised-learning)
+      - [Decision Tree (DT)](#decision-tree-dt)
+7. [Files and Folders](#files-and-folders)
+
 ## Requirements
 
 To use AxLS, Python, Yosys, and Icarus Verilog are required, at least in the
@@ -136,7 +157,7 @@ Nodes to delete if output 5 is constant
 ['_145_', '_144_']
 ```
 
-- Sample of what the Pseudo Probrun method would suggest:
+- Sample of what the Pseudo ProbPrun method would suggest:
 ```
 ProbPrun suggest delete the node _068_ because it's 0 75% of the time
 _069_ is 0 75% of the time
@@ -397,7 +418,7 @@ Nodes to delete if output 5 is constant
 ['_091_']
 ```
 
-#### Pseudo-Probabilistic Pruning (ProbPun)
+#### Pseudo-Probabilistic Pruning (ProbPrun)
 
 Suggests nodes to delete based on the toggling time a specific node keep a constant value (1 or 0) in their output.
 
