@@ -91,21 +91,6 @@ class ApproxSynthesisConfig:
 
         The error used is the Mean Relative Error Distance.
 
-    max_iters : int, optional
-        Maximum amount of iterations to execute. Used in iterative methods,
-        like pruning methods or ML methods with resynthesis.
-
-    max_depth : int, optional
-        Required for 'decision_tree'.
-
-    one_tree_per_output : bool, default=False
-        Used only by 'decision_tree' method.
-        If True, uses a separate tree per output.
-        If False, uses a single multi-output tree.
-
-    show_progress : bool, default=False
-        Whether to show simulation progress.
-
     validation : float (0 < x <= 1), optional
         Specifies the proportion of the input dataset to be used for the
         validation set.
@@ -120,6 +105,21 @@ class ApproxSynthesisConfig:
         This can help verify whether the generated solution will generalize well
         to the rest of the possible circuit inputs that aren't part of the
         dataset.
+
+    max_iters : int, optional
+        Maximum amount of iterations to execute. Used in iterative methods,
+        like pruning methods or ML methods with resynthesis.
+
+    max_depth : int, optional
+        Required for 'decision_tree'.
+
+    one_tree_per_output : bool, default=False
+        Used only by 'decision_tree' method.
+        If True, uses a separate tree per output.
+        If False, uses a single multi-output tree.
+
+    show_progress : bool, default=False
+        Whether to show simulation progress.
 
     csv : str, optional
         Path to a file to save the output in csv format.
@@ -146,11 +146,11 @@ class ApproxSynthesisConfig:
     metrics: list[Metric]
     resynthesis: bool
     error: float | None
+    validation: float | None
     max_iters: int | None
     max_depth: int | None
     one_tree_per_output: bool
     show_progress: bool
-    validation: float | None
     csv: str | None
 
     def __init__(
@@ -161,11 +161,11 @@ class ApproxSynthesisConfig:
         metrics: list[Metric | str],
         resynthesis: bool = False,
         error: float | None = None,
+        validation: float | None = None,
         max_iters: int | None = None,
         max_depth: int | None = None,
         one_tree_per_output: bool = False,
         show_progress: bool = False,
-        validation: float | None = None,
         csv: str | None = None,
     ):
         """
@@ -183,13 +183,13 @@ class ApproxSynthesisConfig:
 
         self.resynthesis = resynthesis
         self.error = _validate_error(error, self.method)
+        self.validation = _validate_validation(validation)
         self.max_iters = max_iters
 
         self.max_depth = _validate_max_depth(max_depth, self.method)
         self.one_tree_per_output = one_tree_per_output
         self.show_progress = show_progress
         self.csv = csv
-        self.validation = _validate_validation(validation)
 
     @override
     def __repr__(self):
@@ -359,6 +359,6 @@ def _validate_validation(validation: float | None) -> float | None:
     """
     if validation is not None:
         if not (0 < validation <= 1):
-            raise ValueError("Validation value must be a float in the range (0, 1].")
+            raise ValueError("'validation' value must be a float in the range 0 < x <= 1.")
 
     return validation

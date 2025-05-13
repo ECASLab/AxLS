@@ -59,7 +59,9 @@ def main():
             metrics = [Metric.MEAN_RELATIVE_ERROR_DISTANCE, Metric.ALS_TIME]
 
         if not os.path.isfile(args.circuit):
-            parser.error(f"The path given for the circuit '{args.circuit}' does not exist.")
+            parser.error(
+                f"The path given for the circuit '{args.circuit}' does not exist."
+            )
 
         try:
             circuit = Circuit(args.circuit, TECH)
@@ -70,6 +72,7 @@ def main():
                 dataset=args.dataset,
                 resynthesis=args.resynthesis,
                 error=args.error,
+                validation=args.validation,
                 max_iters=args.max_iters,
                 max_depth=args.max_depth,
                 one_tree_per_output=args.one_tree_per_output,
@@ -122,6 +125,11 @@ def run_arguments(run_parser):
         help="Maximum error threshold to stop iterations. (0 < x <= 1). The error used is Mean Relative Error Distance.",
     )
     run_parser.add_argument(
+        "--validation",
+        type=float,
+        help="Proportion of the dataset to allocate for validation (0 < x <= 1).",
+    )
+    run_parser.add_argument(
         "--max-iters",
         type=int,
         help="Maximum number of iterations for iterative methods.",
@@ -135,7 +143,9 @@ def run_arguments(run_parser):
         help="Use one tree per output for decision_tree",
     )
     run_parser.add_argument(
-        "--show-progress", action="store_true", help="Show the progress of simulations executed for the ALS."
+        "--show-progress",
+        action="store_true",
+        help="Show the progress of simulations executed for the ALS.",
     )
     run_parser.add_argument(
         "--csv",
@@ -148,6 +158,7 @@ def run_arguments(run_parser):
 
         - bool values are stored as "True" or "False".
         - optional fields will just be left blank if not provided.
+        - if 'validation' flag is given, error metrics will be given as: metric1, v_metric1, metric2, v_metric2, ...
         """,
     )
 
