@@ -106,6 +106,21 @@ class ApproxSynthesisConfig:
     show_progress : bool, default=False
         Whether to show simulation progress.
 
+    validation : float (0 < x <= 1), optional
+        Specifies the proportion of the input dataset to be used for the
+        validation set.
+
+        If provided, the dataset will be split into two subsets: a test set and a
+        validation set.
+        The value of this parameter represents the percentage of the total
+        dataset that will be allocated to the validation set. For example, a
+        value of 0.2 means that 20% of the dataset will be used for validation,
+        while the remaining 80% will be used for testing during ALS.
+
+        This can help verify whether the generated solution will generalize well
+        to the rest of the possible circuit inputs that aren't part of the
+        dataset.
+
     csv : str, optional
         Path to a file to save the output in csv format.
         If the file doesn't exist, it will be created with a header for the
@@ -113,6 +128,13 @@ class ApproxSynthesisConfig:
 
         The output will be given as a single line with the following columns:
             method, circuit, resynthesis, error, max_iters, max_depth, one_tree_per_output, metric1, metric2, ...
+
+        If the 'validation' option is given, the metrics columns will look like:
+
+        metric1, v_metric1, metric2, v_metric2, ...
+
+        Where the metric prepended with 'v_' is the result of that metric on the
+        validation set. Applies only for error metrics.
 
         - bool values are stored as "True" or "False".
         - optional fields will just be left blank if not provided.
@@ -128,6 +150,7 @@ class ApproxSynthesisConfig:
     max_depth: int | None
     one_tree_per_output: bool
     show_progress: bool
+    validation: float | None
     csv: str | None
 
     def __init__(
@@ -142,6 +165,7 @@ class ApproxSynthesisConfig:
         max_depth: int | None = None,
         one_tree_per_output: bool = False,
         show_progress: bool = False,
+        validation: float | None = None,
         csv: str | None = None,
     ):
         """
@@ -165,6 +189,7 @@ class ApproxSynthesisConfig:
         self.one_tree_per_output = one_tree_per_output
         self.show_progress = show_progress
         self.csv = csv
+        self.validation = _validate_validation(validation)
 
     @override
     def __repr__(self):
@@ -321,3 +346,19 @@ def _validate_max_depth(
                 raise ValueError("max_depth must be > 1")
 
             return max_depth
+
+
+def _validate_validation(validation: float | None) -> float | None:
+    """
+    Validates the 'validation' parameter.
+
+    Ensures that the value is a float within the range (0, 1].
+    If the value is None, it is considered valid and returned as is.
+
+    Raises ValueError if the value is not in the specified range.
+    """
+    if validation is not None:
+        if not (0 < validation <= 1):
+            raise ValueError("Validation value must be a float in the range (0, 1].")
+
+    return validation
