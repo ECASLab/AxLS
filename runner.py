@@ -201,18 +201,15 @@ def _run_constant_inputs_outputs(
     """
     circuit = config.circuit
 
-    assert config.max_iters is not None, (
-        f"'max_iters' should be given when executing {config.method}"
-    )
-
     assert config.error is not None, (
         f"'error' should be given when executing {config.method}"
     )
 
     max_const_bit = 0
     iteration = 0
+    max_iters = config.max_iters if config.max_iters else float("inf")
 
-    while iteration < config.max_iters:
+    while iteration < max_iters:
         const_variables = _get_lsbs_up_to(circuit_variables, max_const_bit)
         deletable_nodes: list[ElementTree.Element]
 
