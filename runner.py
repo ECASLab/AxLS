@@ -159,47 +159,10 @@ def _run_decision_tree(config: ApproxSynthesisConfig) -> Circuit:
         APPROX_RTL, exact_circuit.tech_file, topmodule=exact_circuit.topmodule
     )
 
-    if not config.resynthesis:
-        tree_circuit.simulate(TB, APPROX_OUTPUT)
-
-    else:
+    if config.resynthesis:
         tree_circuit.resynth()
-        tree_circuit.simulate(TB, APPROX_OUTPUT)
-        error = compute_error(
-            Metric.MEAN_RELATIVE_ERROR_DISTANCE, EXACT_OUTPUT, APPROX_OUTPUT
-        )
 
-        assert isinstance(config.error, float), (
-            "'error' should be given when executing decision tree with resynthesis"
-        )
-
-        if error > config.error:
-            return tree_circuit
-
-        assert isinstance(config.max_iters, int), (
-            "'max_iters' should be given when executing decision tree with resynthesis"
-        )
-
-        for _ in range(config.max_iters):
-            last_output = read_dataset(APPROX_OUTPUT, 10)
-
-            tree.train(inputs, last_output)
-            tree.to_verilog_file(exact_circuit.topmodule, RESYNTH_RTL)
-
-            resynth_circuit = Circuit(
-                RESYNTH_RTL, exact_circuit.tech_file, topmodule=exact_circuit.topmodule
-            )
-            resynth_circuit.simulate(TB, TEMP_OUTPUT)
-
-            error = compute_error(
-                Metric.MEAN_RELATIVE_ERROR_DISTANCE, EXACT_OUTPUT, TEMP_OUTPUT
-            )
-
-            if error > config.error:
-                return tree_circuit
-            else:
-                os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
-                tree_circuit = resynth_circuit
+    tree_circuit.simulate(TB, APPROX_OUTPUT)
 
     return tree_circuit
 

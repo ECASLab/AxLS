@@ -32,7 +32,6 @@ class Metric(str, Enum):
     ALS_TIME = "time"
     AREA = "area"
 
-
     def to_user_friendly_display(self, value: float) -> str:
         """
         Formats the value to a user friendly string format for display.
@@ -42,13 +41,12 @@ class Metric(str, Enum):
         match self:
             # Percentage metrics
             case Metric.MEAN_RELATIVE_ERROR_DISTANCE | Metric.AREA:
-                return f"{round(value*100, 2)}%"
+                return f"{round(value * 100, 2)}%"
             case Metric.ALS_TIME:
                 return f"{round(value, 2)} s"
             # No special handling except rounding
             case _:
                 return str(round(value, 2))
-
 
 
 # List of iterative methods.
@@ -59,9 +57,6 @@ _ITERATIVE_METHODS = [
     AlsMethod.SIGNIFICANCE,
     AlsMethod.CCARVING,
 ]
-
-# List of methods that aren't iterative but can be when doing resynthesis.
-_ITERATIVE_METHODS_WITH_RESYNTHESIS = [AlsMethod.DECISION_TREE]
 
 
 class ApproxSynthesisConfig:
@@ -163,8 +158,8 @@ class ApproxSynthesisConfig:
         self.metrics = _validate_metrics(metrics)
 
         self.resynthesis = resynthesis
-        self.error = _validate_error(error, self.method, self.resynthesis)
-        self.max_iters = _validate_max_iters(max_iters, self.method, self.resynthesis)
+        self.error = _validate_error(error, self.method)
+        self.max_iters = max_iters
 
         self.max_depth = _validate_max_depth(max_depth, self.method)
         self.one_tree_per_output = one_tree_per_output
@@ -286,7 +281,6 @@ def _validate_dataset(
 def _validate_error(
     error: float | None,
     method: AlsMethod,
-    resynthesis: bool,
 ) -> float | None:
     """
     Validates 'error'.
@@ -300,39 +294,8 @@ def _validate_error(
     if method in _ITERATIVE_METHODS:
         if error is None:
             raise ValueError(f"'error' is required for method {method}")
-    elif (
-        method in _ITERATIVE_METHODS_WITH_RESYNTHESIS and resynthesis and error is None
-    ):
-        raise ValueError(f"'error' is required for method {method} with resynthesis")
 
     return error
-
-
-def _validate_max_iters(
-    max_iters: int | None, method: AlsMethod, resynthesis: bool
-) -> int | None:
-    """
-    Validates 'max_iters'.
-
-    Required for iterative methods.
-    Raises ValueError if missing in that case.
-    """
-
-    if method in _ITERATIVE_METHODS:
-        if max_iters is None:
-            raise ValueError(f"'max_iters' is required for method {method}")
-    if (
-        method in _ITERATIVE_METHODS_WITH_RESYNTHESIS
-        and resynthesis
-        and max_iters is None
-    ):
-        raise ValueError(f"'max_iters' is required for {method} with resynthesis")
-
-    if max_iters is not None:
-        try:
-            return int(max_iters)
-        except ValueError:
-            raise ValueError("'max_iters' should be given as an integer")
 
 
 def _validate_max_depth(
