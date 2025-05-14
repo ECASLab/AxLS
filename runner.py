@@ -1,3 +1,4 @@
+from collections import deque
 from collections.abc import Callable
 import csv
 import os
@@ -28,21 +29,16 @@ TEMP_OUTPUT = f"{BUILD_DIR}/.tmp_output"
 
 TB = f"{BUILD_DIR}/.tb.v"
 
+VALIDATION_DATASET = f"{BUILD_DIR}/.v_dataset"
+VALIDATION_TB = f"{BUILD_DIR}/.v_tb.v"
+VALIDATION_EXACT_OUTPUT = f"{BUILD_DIR}/.v_exact_output"
+VALIDATION_APPROX_OUTPUT = f"{BUILD_DIR}/.v_approx_output"
+
 VCD = f"{BUILD_DIR}/.vcd"
 SAIF = f"{BUILD_DIR}/.saif"
 
-# This list should contain all the Metrics that are related to approximation
-# errors.
-_APPROXIMATION_ERROR_METRICS: list[Metric] = [
-    Metric.HAMMING_DISTANCE,
-    Metric.MEAN_ERROR_DISTANCE,
-    Metric.WORST_CASE_ERROR,
-    Metric.MEAN_RELATIVE_ERROR_DISTANCE,
-    Metric.MEAN_SQUARED_ERROR_DISTANCE,
-]
 
-
-def run(config: ApproxSynthesisConfig) -> Results:
+def run(config: ApproxSynthesisConfig) -> tuple[Results, Results | None]:
     """
     Runner function for an execution specified by a valid ApproxSynthesisConfig.
     This function will do the following steps:
@@ -50,16 +46,27 @@ def run(config: ApproxSynthesisConfig) -> Results:
     - Carry out the given ALS method
     - Calculate the metrics given in config.metrics and return them as a Results
       dict.
+
+    If the 'validation' option is set, it will also return a second Results
+    object which contains the error metrics specified, calculated on the
+    validation set. It won't include non-error metrics like area or time since
+    those won't change based on the dataset.
     """
     if not os.path.exists(BUILD_DIR):
         os.makedirs(BUILD_DIR)
 
-    config.circuit.write_tb(TB, config.dataset, show_progress=config.show_progress)
-    config.circuit.exact_output(TB, EXACT_OUTPUT)
+    _create_tbs_and_exact_outputs(config)
 
     # The benchmark functions should return the final approximated circuit (for
-    # area calculation) and also carry out the final simulation to generate the
-    # APPROX_OUTPUT that will be used to calculate error metrics.
+    # area calculation and validation simulation) and also carry out the final
+    # simulation to generate the APPROX_OUTPUT that will be used to calculate
+    # error metrics.
+    #
+    # We want the benchmark_fn to carry out this final simulation because a lot
+    # of the methods need to carry out simulations in order to iterate (for
+    # example the constant inputs and outputs methods), so it's better to make
+    # use of those simulations instead of re-running the same sim outside of the
+    # benchmark_fn.
     benchmark_fn: Callable[[ApproxSynthesisConfig], Circuit]
     match config.method:
         case AlsMethod.CONSTANT_INPUTS:
@@ -80,12 +87,21 @@ def run(config: ApproxSynthesisConfig) -> Results:
     # - Execution of ALS method.
     # - Simulation of approximated circuit.
     # - Calculation of all metrics.
+    #
+    # We include simulations and calculation of all metrics because, even though
+    # they don't contribute directly to generating the final circuit, they are
+    # a necessary part of ALS in order to learn the circuit's characteristics
+    # and whether it's a worthwhile candidate.
     start_time = time.perf_counter()
 
     original_area = float(config.circuit.get_area())
 
     approx_circuit = benchmark_fn(config)
-    results = _compute_error_metrics(config)
+
+    if config.validation is not None:
+        approx_circuit.simulate(VALIDATION_TB, VALIDATION_APPROX_OUTPUT)
+
+    results, validation_results = _compute_error_metrics(config)
 
     if Metric.AREA in config.metrics:
         approx_area = float(approx_circuit.get_area())
@@ -101,9 +117,9 @@ def run(config: ApproxSynthesisConfig) -> Results:
     approx_circuit.write_to_disk(APPROX_RTL)
 
     if config.csv:
-        _write_results_to_csv(config, results)
+        _write_results_to_csv(config, results, validation_results)
 
-    return results
+    return results, validation_results
 
 
 def _create_saif(config: ApproxSynthesisConfig):
@@ -123,7 +139,9 @@ def _create_saif(config: ApproxSynthesisConfig):
     config.circuit.generate_saif_from_vcd(SAIF, VCD)
 
 
-def _write_results_to_csv(config: ApproxSynthesisConfig, results: Results):
+def _write_results_to_csv(
+    config: ApproxSynthesisConfig, results: Results, validation_results: None | Results
+):
     """
     Writes the execution results to a CSV file as a single row.
     """
@@ -138,13 +156,17 @@ def _write_results_to_csv(config: ApproxSynthesisConfig, results: Results):
         # If the file does not exist, write the header
         if not file_exists:
             writer.writerow(config.csv_columns())
-        writer.writerow(config.csv_values(results))
+
+        print("VALIDATION RESULTS:", validation_results)
+        writer.writerow(config.csv_values(results, validation_results))
 
 
 def _run_decision_tree(config: ApproxSynthesisConfig) -> Circuit:
     exact_circuit = config.circuit
-    inputs = read_dataset(config.dataset, 16)
     outputs = read_dataset(EXACT_OUTPUT, 10)
+    inputs = read_dataset(config.dataset, 16, max_lines=len(outputs))
+    # We use max_lines because the output set might be smaller due to a
+    # validation set being used
 
     tree = DecisionTreeCircuit(
         exact_circuit.inputs,
@@ -272,14 +294,26 @@ def _run_ccarving(config: ApproxSynthesisConfig) -> Circuit:
     return config.circuit  # TODO Implement method
 
 
-def _compute_error_metrics(config: ApproxSynthesisConfig) -> Results:
-    result: Results = {}
-    for metric in config.metrics:
-        if metric in _APPROXIMATION_ERROR_METRICS:
-            error = compute_error(metric.value, EXACT_OUTPUT, APPROX_OUTPUT)
-            result[metric] = error
+def _compute_error_metrics(
+    config: ApproxSynthesisConfig,
+) -> tuple[Results, Results | None]:
+    results: Results = {}
+    if config.validation is not None:
+        validation_results = {}
+    else:
+        validation_results = None
 
-    return result
+    for metric in config.metrics:
+        if metric.is_error_metric():
+            error = compute_error(metric.value, EXACT_OUTPUT, APPROX_OUTPUT)
+            results[metric] = error
+            if validation_results is not None and config.validation != 0:
+                error = compute_error(
+                    metric.value, VALIDATION_EXACT_OUTPUT, VALIDATION_APPROX_OUTPUT
+                )
+                validation_results[metric] = error
+
+    return results, validation_results
 
 
 def _get_lsbs_up_to(variables: list[str], bit_index: int) -> list[str]:
@@ -328,3 +362,53 @@ def _get_lsbs_up_to(variables: list[str], bit_index: int) -> list[str]:
             result.append(var)
 
     return result
+
+
+def _create_tbs_and_exact_outputs(config: ApproxSynthesisConfig):
+    """
+    Generate test and validation testbenches along with their exact outputs
+    based on the provided configuration.
+
+    If a validation fraction is specified, the function splits the dataset into
+    test and validation sets, creating corresponding testbenches and exact
+    outputs; otherwise, it creates a single testbench using the full dataset.
+    """
+    if config.validation is not None:
+        # Count the number of inputs in the dataset
+        with open(config.dataset, "r") as file:
+            total_lines = sum(1 for _ in file)
+
+        # Create TB that reads only the test dataset
+        test_dataset_size = int(round((1 - config.validation) * total_lines))
+        config.circuit.write_tb(
+            TB,
+            config.dataset,
+            show_progress=config.show_progress,
+            iterations=test_dataset_size,
+        )
+        config.circuit.exact_output(TB, EXACT_OUTPUT)
+
+        # Create validation TB
+        validation_dataset_size = int(round(config.validation * total_lines))
+        _copy_last_n_lines(config.dataset, VALIDATION_DATASET, validation_dataset_size)
+        config.circuit.write_tb(
+            VALIDATION_TB, VALIDATION_DATASET, show_progress=config.show_progress
+        )
+        config.circuit.exact_output(VALIDATION_TB, VALIDATION_EXACT_OUTPUT)
+    else:
+        # No validation set, just create a regular TB using the full dataset
+        config.circuit.write_tb(TB, config.dataset, show_progress=config.show_progress)
+        config.circuit.exact_output(TB, EXACT_OUTPUT)
+
+
+def _copy_last_n_lines(input_file: str, output_file: str, n: int) -> None:
+    """
+    Copy the last N lines from an input file to an output file.
+
+    Used to create a validation dataset from the original dataset.
+    """
+    with open(input_file, "r") as infile:
+        last_n_lines = deque(infile, maxlen=n)
+
+    with open(output_file, "w") as outfile:
+        outfile.writelines(last_n_lines)

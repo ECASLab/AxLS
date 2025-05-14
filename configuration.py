@@ -48,6 +48,17 @@ class Metric(str, Enum):
             case _:
                 return str(round(value, 2))
 
+    def is_error_metric(self) -> bool:
+        # This set should contain all the Metrics that are related to
+        # approximation errors.
+        return self in {
+            Metric.HAMMING_DISTANCE,
+            Metric.MEAN_ERROR_DISTANCE,
+            Metric.WORST_CASE_ERROR,
+            Metric.MEAN_RELATIVE_ERROR_DISTANCE,
+            Metric.MEAN_SQUARED_ERROR_DISTANCE,
+        }
+
 
 # List of iterative methods.
 _ITERATIVE_METHODS = [
@@ -91,20 +102,20 @@ class ApproxSynthesisConfig:
 
         The error used is the Mean Relative Error Distance.
 
-    validation : float (0 < x <= 1), optional
-        Specifies the proportion of the input dataset to be used for the
+    validation : float (0 <= x < 1), optional
+        Specifies the proportion of the input dataset to be allocated to the
         validation set.
 
-        If provided, the dataset will be split into two subsets: a test set and a
-        validation set.
-        The value of this parameter represents the percentage of the total
-        dataset that will be allocated to the validation set. For example, a
-        value of 0.2 means that 20% of the dataset will be used for validation,
-        while the remaining 80% will be used for testing during ALS.
+        If provided, the dataset will be split into a validation set and a test
+        set. For example, a value of 0.2 means 20% of the dataset will be used
+        for validation, while 80% will be used for testing during ALS. This helps
+        assess whether the generated solution generalizes well to unseen circuit
+        inputs.
 
-        This can help verify whether the generated solution will generalize well
-        to the rest of the possible circuit inputs that aren't part of the
-        dataset.
+        A value of 0 indicates that the full dataset will be used for training,
+        similar to not providing this parameter. However, it can be useful when
+        generating csv data because the columns will be formatted to align with
+        other circuits that are using a validation set.
 
     max_iters : int, optional
         Maximum amount of iterations to execute. Used in iterative methods,
@@ -122,22 +133,23 @@ class ApproxSynthesisConfig:
         Whether to show simulation progress.
 
     csv : str, optional
-        Path to a file to save the output in csv format.
-        If the file doesn't exist, it will be created with a header for the
-        columns, if it exists it will be appended to.
+        Path to a file for saving the output in CSV format. If the file does not
+        exist, it will be created with a header; if it exists, the output will be
+        appended.
 
         The output will be given as a single line with the following columns:
             method, circuit, resynthesis, error, max_iters, max_depth, one_tree_per_output, metric1, metric2, ...
 
-        If the 'validation' option is given, the metrics columns will look like:
+        If the 'validation' option is given, the metrics will include validation results, formatted as:
 
-        metric1, v_metric1, metric2, v_metric2, ...
+            metric1, v_metric1, metric2, v_metric2, ...
 
-        Where the metric prepended with 'v_' is the result of that metric on the
-        validation set. Applies only for error metrics.
+        Where 'v_' indicates the metric's result on the validation set. This
+        applies only to error metrics.
 
         - bool values are stored as "True" or "False".
-        - optional fields will just be left blank if not provided.
+        - optional fields (error, max_iters, max_depth, one_tree_per_output) will
+        just be left blank if not provided.
     """
 
     method: AlsMethod
@@ -212,15 +224,23 @@ class ApproxSynthesisConfig:
         ]
         for metric in self.metrics:
             columns.append(metric.value)
+            if self.validation is not None and metric.is_error_metric():
+                columns.append(f"v_{metric.value}")
 
         return columns
 
-    def csv_values(self, results: dict[Metric, float]) -> list[str]:
+    def csv_values(
+        self,
+        results: dict[Metric, float],
+        validation_results: None | dict[Metric, float],
+    ) -> list[str]:
         """
         Returns the values of the columns if exporting this config's execution to
         a CSV row.
         A Results dict must be provided, it is assumed it contains the results
         for the metrics given to this config.
+        A validation Results dict can be provided, if it is, it's assumed it
+        contains the results for the error metrics provided to this config.
         """
         values = [
             self.method.value,
@@ -234,6 +254,10 @@ class ApproxSynthesisConfig:
 
         for metric in self.metrics:
             values.append(results[metric])
+            if validation_results is not None and metric.is_error_metric():
+                # We use `get` because maybe the metric might not be in the dict
+                # if the 'validation' option was given with a value of 0
+                values.append(validation_results.get(metric, None))
 
         stringified_values = [
             str(value) if value is not None else "" for value in values
@@ -358,7 +382,9 @@ def _validate_validation(validation: float | None) -> float | None:
     Raises ValueError if the value is not in the specified range.
     """
     if validation is not None:
-        if not (0 < validation <= 1):
-            raise ValueError("'validation' value must be a float in the range 0 < x <= 1.")
+        if not (0 <= validation < 1.0):
+            raise ValueError(
+                "'validation' value must be a float in the range 0 <= x < 1."
+            )
 
     return validation
