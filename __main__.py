@@ -85,12 +85,18 @@ def main():
         print("Configuration loaded successfully")
         print(config)
 
-        results = run(config)
+        (results, validation_results) = run(config)
 
         print("\n---- Results -----")
         for metric in config.metrics:
             value = results[metric]
             print(f"{metric.value}: {metric.to_user_friendly_display(value)}")
+
+        if validation_results:
+            print("\n---- Results on Validation Set -----")
+            for metric, value in validation_results.items():
+                print(f"{metric.value}: {metric.to_user_friendly_display(value)}")
+
 
     elif args.subcommand == "generate":
         generate_dataset(args)
@@ -127,7 +133,7 @@ def run_arguments(run_parser):
     run_parser.add_argument(
         "--validation",
         type=float,
-        help="Proportion of the dataset to allocate for validation (0 < x <= 1).",
+        help="Proportion of the dataset to allocate for validation (0 <= x < 1).",
     )
     run_parser.add_argument(
         "--max-iters",
@@ -192,7 +198,7 @@ def generate_dataset(args: argparse.Namespace):
     if isinstance(size, float):
         if not (0 < size <= 1.0):
             raise argparse.ArgumentTypeError(
-                f"Dataset size must be greater than 0: {size}"
+                f"Dataset size as a percentage of total inputs must be between 0 < x <= 1.0: {size}"
             )
 
         max_inputs = 2 ** (len(circuit.inputs))
