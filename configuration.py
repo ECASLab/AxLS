@@ -138,7 +138,7 @@ class ApproxSynthesisConfig:
         appended.
 
         The output will be given as a single line with the following columns:
-            method, circuit, resynthesis, error, max_iters, max_depth, one_tree_per_output, metric1, metric2, ...
+            method, circuit, resynthesis, error, max_depth, one_tree_per_output, metric1, metric2, ...
 
         If the 'validation' option is given, the metrics will include validation results, formatted as:
 
@@ -148,9 +148,16 @@ class ApproxSynthesisConfig:
         applies only to error metrics.
 
         - bool values are stored as "True" or "False".
-        - optional fields (error, max_iters, max_depth, one_tree_per_output) will
+        - optional fields (error, max_depth, one_tree_per_output) will
         just be left blank if not provided.
     """
+    # TODO: the configuration options included in the csv: resynthesis, error,
+    # max_depth and one_tree_per_output; were chosen arbitrarily and are not
+    # necessarily more interesting than other options not included. Perhaps the
+    # configuration options included in the CSV should also be configurable, or
+    # we should include any options that are not None, or we should always
+    # include every single possible option and metric in the csv, even those
+    # not specified.
 
     method: AlsMethod
     circuit: Circuit
@@ -218,7 +225,6 @@ class ApproxSynthesisConfig:
             "circuit",
             "resynthesis",
             "error",
-            "max_iters",
             "max_depth",
             "one_tree_per_output",
         ]
@@ -247,7 +253,6 @@ class ApproxSynthesisConfig:
             self.circuit.topmodule,
             self.resynthesis,
             self.error,
-            self.max_iters,
             self.max_depth,
             self.one_tree_per_output,
         ]
