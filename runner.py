@@ -301,7 +301,7 @@ def _run_probprun(config: ApproxSynthesisConfig) -> Circuit:
     # existing nodes. We don't re-simulate and re-generate the SAIF because the
     # python method to regenerate the SAIF takes really long even for small
     # datasets. (Example: BK_16b, 4000 inputs, takes ~30 seconds to generate
-    # SAIF) But, if we find a way to generate the SAIF file quickly, for example
+    # SAIF.) But, if we find a way to generate the SAIF file quickly, for example
     # using a faster language for it, we might want to regenerate it on every
     # iteration or every N iterations.
 
@@ -361,10 +361,12 @@ def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
     iteration = 0
     max_iters = config.max_iters if config.max_iters else float("inf")
 
-    # TODO: Allow specifying the output significances in the config
-    output_significances = []
+    if config.output_significances is not None:
+        output_significances = config.output_significances
+    else:
+        output_significances = []
 
-    for node, significance in GetbySignificance(circuit_root):
+    for node, significance in GetbySignificance(circuit_root, output_significances):
         if iteration >= max_iters:
             break
 
@@ -374,9 +376,7 @@ def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
             f"Node {node} suggested by GetbySignificance should be findable in the circuit"
         )
 
-        print(
-            f"Pruning node {node} because its significance is {significance}"
-        )
+        print(f"Pruning node {node} because its significance is {significance}")
         node_to_delete.set("delete", "yes")
 
         if config.resynthesis:
