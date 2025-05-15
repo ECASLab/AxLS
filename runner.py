@@ -127,8 +127,19 @@ def run(config: ApproxSynthesisConfig) -> tuple[Results, Results | None]:
 
 def _create_saif(config: ApproxSynthesisConfig):
     """
-    Create a SAIF file and annotate the circuit with its data
+    If the circuit doesn't have timing information, create a SAIF file and
+    annotate the circuit with its data.
     """
+
+    nodes = config.circuit.netl_root.findall("node")
+    node_outputs = [node.findall("output")[0] for node in nodes]
+    circuit_has_timing_info = all(
+        "t1" in node_output.attrib for node_output in node_outputs
+    )
+
+    if circuit_has_timing_info:
+        print("Circuit already has timing info, skipping SAIF generation")
+        return
 
     config.circuit.write_tb(
         VCD_TB,
