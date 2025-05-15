@@ -9,7 +9,7 @@ from circuit import Circuit
 class AlsMethod(str, Enum):
     CONSTANT_INPUTS = "inconst"
     CONSTANT_OUTPUTS = "outconst"
-    PROBRUN = "probrun"
+    PROBPRUN = "probprun"
     SIGNIFICANCE = "significance"
     CCARVING = "ccarving"
     DECISION_TREE = "decision_tree"
@@ -64,7 +64,7 @@ class Metric(str, Enum):
 _ITERATIVE_METHODS = [
     AlsMethod.CONSTANT_INPUTS,
     AlsMethod.CONSTANT_OUTPUTS,
-    AlsMethod.PROBRUN,
+    AlsMethod.PROBPRUN,
     AlsMethod.SIGNIFICANCE,
     AlsMethod.CCARVING,
 ]
@@ -78,7 +78,7 @@ class ApproxSynthesisConfig:
     ----------
     method : AlsMethod | str
         One of the supported methods. Can use the AlsMethod enum or one of the
-        following string names: 'inconst', 'outconst', 'probrun',
+        following string names: 'inconst', 'outconst', 'probprun',
         'significance', 'ccarving', or 'decision_tree'.
 
     circuit : Circuit

@@ -532,7 +532,7 @@ class Circuit:
 
     def simulate(self, testbench, approximate_output):
         '''
-        Simulates the actual circuit tree (with deletions)
+        Simulates the circuit tree with deletions.
         Creates an executable using icarus, end then execute it to obtain the
         output of the testbench
 
@@ -787,7 +787,8 @@ class Circuit:
             text += '$display("-- Beginning Simulation --");\n\n'
 
         if dump_vcd:
-            text=f'{text} $dumpfile("{dump_vcd}");\n' \
+            relative_vcd_path = os.path.relpath(dump_vcd, start=os.path.dirname(filename))
+            text=f'{text} $dumpfile("{relative_vcd_path}");\n' \
                  f' $dumpvars(0,{self.topmodule}_tb);\n'
 
         relative_dataset_path = os.path.relpath(dataset_file, start=os.path.dirname(filename))

@@ -8,6 +8,7 @@ from circuit import Circuit
 from circuiterror import compute_error
 from ml_algorithms.decision_tree import DecisionTreeCircuit
 from pruning_algorithms.inouts import GetInputs, GetOutputs
+from pruning_algorithms.probprun import GetOneNode
 from utils import read_dataset
 from configuration import AlsMethod, ApproxSynthesisConfig, Metric
 
@@ -35,6 +36,7 @@ VALIDATION_EXACT_OUTPUT = f"{BUILD_DIR}/.v_exact_output"
 VALIDATION_APPROX_OUTPUT = f"{BUILD_DIR}/.v_approx_output"
 
 VCD = f"{BUILD_DIR}/.vcd"
+VCD_TB = f"{BUILD_DIR}/.vcd_tb.v"
 SAIF = f"{BUILD_DIR}/.saif"
 
 
@@ -73,9 +75,9 @@ def run(config: ApproxSynthesisConfig) -> tuple[Results, Results | None]:
             benchmark_fn = _run_constant_inputs
         case AlsMethod.CONSTANT_OUTPUTS:
             benchmark_fn = _run_constant_outputs
-        case AlsMethod.PROBRUN:
+        case AlsMethod.PROBPRUN:
             _create_saif(config)
-            benchmark_fn = _run_probrun
+            benchmark_fn = _run_probprun
         case AlsMethod.SIGNIFICANCE:
             benchmark_fn = _run_significance
         case AlsMethod.CCARVING:
@@ -126,8 +128,6 @@ def _create_saif(config: ApproxSynthesisConfig):
     """
     Create a SAIF file and annotate the circuit with its data
     """
-
-    VCD_TB = f"{BUILD_DIR}/.vcd_tb.v"
 
     config.circuit.write_tb(
         VCD_TB,
@@ -282,8 +282,60 @@ def _run_constant_inputs_outputs(
     return circuit
 
 
-def _run_probrun(config: ApproxSynthesisConfig) -> Circuit:
-    return config.circuit  # TODO Implement method
+def _run_probprun(config: ApproxSynthesisConfig) -> Circuit:
+    # TODO (Possible improvement): After pruning some nodes, if we re-simulate
+    # the cirucit re-generating the vcd file, and with the new vcd re-generate
+    # the SAIF, one can notice a different timing behaviour from the remaining
+    # existing nodes. We don't re-simulate and re-generate the SAIF because the
+    # python method to regenerate the SAIF takes really long even for small
+    # datasets. (Example: BK_16b, 4000 inputs, takes ~30 seconds to generate
+    # SAIF) But, if we find a way to generate the SAIF file quickly, for example
+    # using a faster language for it, we might want to regenerate it on every
+    # iteration or every N iterations.
+
+    circuit = config.circuit
+    circuit_root = circuit.netl_root
+
+    assert config.error is not None, (
+        f"'error' should be given when executing {config.method}"
+    )
+
+    iteration = 0
+    max_iters = config.max_iters if config.max_iters else float("inf")
+
+    for node, output, time_percent in GetOneNode(circuit_root):
+        if iteration >= max_iters:
+            break
+
+        node_to_delete = circuit_root.find(f"./node[@var='{node}']")
+
+        assert node_to_delete is not None, (
+            f"Node {node} suggested by ProbPrun should be findable in the circuit"
+        )
+
+        print(
+            f"Pruning node {node_to_delete} because it's {output} {time_percent}% of the time"
+        )
+        node_to_delete.set("delete", "yes")
+
+        if config.resynthesis:
+            circuit.resynth()
+
+        error = circuit.simulate_and_compute_error(
+            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+        )
+
+        print(f"Pruned circuit error: {error}")
+
+        if iteration > 0 and error > config.error:
+            print("Error has overpassed threshold, undoing last prune\n")
+            node_to_delete.set("delete", "no")
+            break
+
+        iteration += 1
+        os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
+
+    return circuit
 
 
 def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
