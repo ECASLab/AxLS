@@ -129,6 +129,15 @@ class ApproxSynthesisConfig:
         If True, uses a separate tree per output.
         If False, uses a single multi-output tree.
 
+    output_significances: list[int]
+        List of significances of the circuit outputs. Should match the number of
+        output bits of the circuit.
+
+        If not provided a significance of 2**i will be assumed, where i is the
+        index of the output bit. (LSB has less significance that MSB.)
+
+        Used by the 'significance' and 'ccarving' methods.
+
     show_progress : bool, default=False
         Whether to show simulation progress.
 
@@ -151,6 +160,7 @@ class ApproxSynthesisConfig:
         - optional fields (error, max_depth, one_tree_per_output) will
         just be left blank if not provided.
     """
+
     # TODO: the configuration options included in the csv: resynthesis, error,
     # max_depth and one_tree_per_output; were chosen arbitrarily and are not
     # necessarily more interesting than other options not included. Perhaps the
@@ -169,6 +179,7 @@ class ApproxSynthesisConfig:
     max_iters: int | None
     max_depth: int | None
     one_tree_per_output: bool
+    output_significances: list[int] | None
     show_progress: bool
     csv: str | None
 
@@ -184,6 +195,7 @@ class ApproxSynthesisConfig:
         max_iters: int | None = None,
         max_depth: int | None = None,
         one_tree_per_output: bool = False,
+        output_significances: list[int] | None = None,
         show_progress: bool = False,
         csv: str | None = None,
     ):
@@ -207,6 +219,9 @@ class ApproxSynthesisConfig:
 
         self.max_depth = _validate_max_depth(max_depth, self.method)
         self.one_tree_per_output = one_tree_per_output
+        self.output_significances = _validate_output_significances(
+            self.circuit, output_significances
+        )
         self.show_progress = show_progress
         self.csv = csv
 
@@ -369,7 +384,7 @@ def _validate_max_depth(
     """
     if method == AlsMethod.DECISION_TREE:
         if max_depth is None:
-            raise ValueError(f"'max_depth' is required for method f{method}.")
+            raise ValueError(f"'max_depth' is required for method {method}.")
         else:
             if max_depth <= 1:
                 raise ValueError("max_depth must be > 1")
@@ -393,3 +408,23 @@ def _validate_validation(validation: float | None) -> float | None:
             )
 
     return validation
+
+
+def _validate_output_significances(
+    circuit: Circuit,
+    output_significances: list[int] | None,
+) -> list[int] | None:
+    """
+    Validates 'output_significances'.
+
+    Ensures that if provided it matches in length the circuit's outputs.
+
+    Raises ValueError if mismatched.
+    """
+    if output_significances is not None:
+        if len(output_significances) != len(circuit.outputs):
+            raise ValueError(
+                f"'output_significances' length ({len(output_significances)}) does not match the amount of circuit outputs ({len(circuit.outputs)})."
+            )
+
+    return output_significances
