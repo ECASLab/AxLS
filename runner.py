@@ -7,6 +7,7 @@ from xml.etree import ElementTree
 from circuit import Circuit
 from circuiterror import compute_error
 from ml_algorithms.decision_tree import DecisionTreeCircuit
+from pruning_algorithms.glpsignificance import GetbySignificance
 from pruning_algorithms.inouts import GetInputs, GetOutputs
 from pruning_algorithms.probprun import GetOneNode
 from utils import read_dataset
@@ -339,7 +340,52 @@ def _run_probprun(config: ApproxSynthesisConfig) -> Circuit:
 
 
 def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
-    return config.circuit  # TODO Implement method
+    circuit = config.circuit
+    circuit_root = circuit.netl_root
+
+    assert config.error is not None, (
+        f"'error' should be given when executing {config.method}"
+    )
+
+    iteration = 0
+    max_iters = config.max_iters if config.max_iters else float("inf")
+
+    # TODO: Allow specifying the output significances in the config
+    output_significances = []
+
+    for node, significance in GetbySignificance(circuit_root):
+        if iteration >= max_iters:
+            break
+
+        node_to_delete = circuit_root.find(f"./node[@var='{node}']")
+
+        assert node_to_delete is not None, (
+            f"Node {node} suggested by GetbySignificance should be findable in the circuit"
+        )
+
+        print(
+            f"Pruning node {node} because its significance is {significance}"
+        )
+        node_to_delete.set("delete", "yes")
+
+        if config.resynthesis:
+            circuit.resynth()
+
+        error = circuit.simulate_and_compute_error(
+            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+        )
+
+        print(f"Pruned circuit error: {error}")
+
+        if iteration > 0 and error > config.error:
+            print("Error has overpassed threshold, undoing last prune\n")
+            node_to_delete.set("delete", "no")
+            break
+
+        iteration += 1
+        os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
+
+    return circuit
 
 
 def _run_ccarving(config: ApproxSynthesisConfig) -> Circuit:
