@@ -64,7 +64,9 @@ def main():
             )
 
         try:
-            circuit = Circuit(args.circuit, TECH)
+            saif = args.saif or ""
+
+            circuit = Circuit(args.circuit, TECH, saif)
             config = ApproxSynthesisConfig(
                 method=args.method,
                 circuit=circuit,
@@ -121,6 +123,10 @@ def run_arguments(run_parser):
         choices=[m.value for m in Metric],
         # TODO: Add docs about what each metric is
         help="Metrics to calculate, defaults to mred and time.",
+    )
+    run_parser.add_argument(
+        "--saif",
+        help="SAIF file for the circuit. Used by 'probrun' method. If not provided, one will be generated during execution.",
     )
     run_parser.add_argument(
         "--resynthesis", action="store_true", help="If provided will use resynthesis."
