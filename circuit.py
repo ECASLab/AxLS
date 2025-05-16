@@ -679,13 +679,30 @@ class Circuit:
             else:
                 inputs_info[name]=1
 
-        '''Iterate inputs'''
+        format=f'0{bitwidth}b' if format=='b' else format #ensure right number of bits if binary
 
-        for bitwidth in inputs_info.values():
-            rows=get_random(bitwidth,distribution,samples, **kwargs)
-            format=f'0{bitwidth}b' if format=='b' else format #ensure right number of bits if binary
-            data.append([f'{i:{format}}' for i in rows])
-        data=list(zip(*data)) # Transpose data see: https://stackoverflow.com/questions/10169919/python-matrix-transpose-and-zip
+        '''Iterate inputs'''
+        if distribution == "shuffle_bag":
+            # Shuffle bag needs to generate all the inputs together to ensure
+            # avoiding repetition of the circuit's inputs as a whole.
+            total_bits = sum(inputs_info.values())
+            inputs = get_random(total_bits, distribution, samples, **kwargs)
+            for input in inputs:
+                shift_right = total_bits
+                row = []
+                for bitwidth in inputs_info.values():
+                    shift_right -= bitwidth
+                    mask = (1<< bitwidth)-1
+                    value = (input >> shift_right) & mask
+                    row.append(f'{value:{format}}')
+                data.append(row)
+
+        else:
+            for bitwidth in inputs_info.values():
+                rows=get_random(bitwidth,distribution,samples, **kwargs)
+                data.append([f'{i:{format}}' for i in rows])
+            data=list(zip(*data)) # Transpose data see: https://stackoverflow.com/questions/10169919/python-matrix-transpose-and-zip
+
         np.savetxt(filename,data,fmt='%s')
 
         return
