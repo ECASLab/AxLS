@@ -7,7 +7,8 @@ from xml.etree import ElementTree
 from circuit import Circuit
 from circuiterror import compute_error
 from ml_algorithms.decision_tree import DecisionTreeCircuit
-from pruning_algorithms.glpsignificance import GetbySignificance
+from pruning_algorithms.ccarving import FindCut
+from pruning_algorithms.glpsignificance import GetbySignificance, LabelCircuit
 from pruning_algorithms.inouts import GetInputs, GetOutputs
 from pruning_algorithms.probprun import GetOneNode
 from utils import read_dataset
@@ -400,7 +401,63 @@ def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
 
 
 def _run_ccarving(config: ApproxSynthesisConfig) -> Circuit:
-    return config.circuit  # TODO Implement method
+    circuit = config.circuit
+    circuit_root = circuit.netl_root
+
+    assert config.error is not None, (
+        f"'error' should be given when executing {config.method}"
+    )
+
+    iteration = 0
+    max_iters = config.max_iters if config.max_iters else float("inf")
+
+    if config.output_significances is not None:
+        output_significances = config.output_significances
+    else:
+        output_significances = []
+
+    # TODO: Allow specifying the diff threshold in the config
+    diff_threshold = 2 ** (len(circuit.outputs)) - 1
+
+    # TODO: NEED to add harshness_level to the config.
+    harshness_level = 1
+
+    # Currently (May 2025) significance is the only relevant difference metric
+    # that we have available, if this changes in the future 'diff' could be added
+    # as a config parameter.
+    diff = "significance"
+
+    LabelCircuit(circuit_root, output_significances)
+
+    while iteration < max_iters:
+        print("Finding cuts...", flush=True)
+
+        cuts = FindCut(circuit_root, diff_threshold, diff, harshness_level)
+
+        nodes_to_delete = cuts[0]
+        nodes_to_delete_names = [n.attrib["var"] for n in nodes_to_delete]
+
+        print(f"Pruning nodes {nodes_to_delete_names} as a single cut...\n")
+        [n.set("delete", "yes") for n in nodes_to_delete]
+
+        if config.resynthesis:
+            circuit.resynth()
+
+        error = circuit.simulate_and_compute_error(
+            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+        )
+
+        print(f"Pruned circuit error: {error}")
+
+        if iteration > 0 and error > config.error:
+            print("Error has overpassed threshold, undoing last prune\n")
+            [n.set("delete", "no") for n in nodes_to_delete]
+            break
+
+        iteration += 1
+        os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
+
+    return circuit
 
 
 def _compute_error_metrics(
