@@ -643,6 +643,10 @@ class Circuit:
                   - 32 inputs: needs ~4.3 billion entries (~137GB RAM)
                   - 16 inputs: only ~65,536 entries (~2MB RAM)
 
+                This is regardless of how many samples you're actually
+                grabbing! Even if you only grab 1 sample the full dataset will
+                be instantiated.
+
                 Use only for small circuits (preferably under 16 inputs).
 
         **kwargs: (optional)

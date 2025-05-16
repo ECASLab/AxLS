@@ -5,7 +5,7 @@ import string
 from typing import List
 import numpy as np
 import math
-from random import uniform, gauss, triangular
+from random import randrange, gauss, triangular
 
 def get_name(length):
     timestamp = datetime.now().strftime("%H%M%S")
@@ -71,7 +71,13 @@ def get_random(bits: int, distribution='uniform', samples=1, **kwargs):
     '''Distributions case'''
     data=[]
     if distribution in {'uniform', 'rectangular'}:
-        data=(int(math.floor(uniform(low_limit,high_limit))) for _ in range(samples))
+        data=(randrange(low_limit, high_limit) for _ in range(samples))
+
+    # TODO: There's an issue with the `triangular` and `gauss` method, which is
+    # that due to returning floats, they generate values were only around 50
+    # MSBs have a non-zero value, which makes them unsuitable for larger
+    # circuits that can have 64, 128, or even more input bits.
+
     elif distribution=='triangular':
         data=(int(math.floor(triangular(low_limit,high_limit,mode=median))) for _ in range(samples))
     elif distribution in {'normal', 'gaussian'}:
