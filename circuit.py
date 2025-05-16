@@ -628,7 +628,22 @@ class Circuit:
                 "gaussian" or "normal" for a normal distribution.
                 "uniform" or "rectangular" for a uniform distribution.
                 "triangular" for a triangular distribution.
+                "shuffle_bag": It's "uniform-like", but avoids repeating values
+                               until the full dataset has been used, employing a
+                               shuffle bag algorithm.
                 TODO: Add more distributions
+
+            shuffle_bag WARNING ⚠️:
+            -----------------------
+                This mode generates a complete list of all possible input
+                combinations in memory, then shuffles and samples from it. It
+                guarantees no repeats, but is very memory intensive.
+
+                For circuits with:
+                  - 32 inputs: needs ~4.3 billion entries (~137GB RAM)
+                  - 16 inputs: only ~65,536 entries (~2MB RAM)
+
+                Use only for small circuits (preferably under 16 inputs).
 
         **kwargs: (optional)
 

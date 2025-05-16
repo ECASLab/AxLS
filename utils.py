@@ -28,6 +28,10 @@ def get_random(bits: int, distribution='uniform', samples=1, **kwargs):
             "gaussian" or "normal" for a normal distribution.
             "uniform" or "rectangular" for a uniform distribution.
             "triangular" for a triangular distribution.
+            "shuffle_bag": Uniform, non-repeating values using a shuffle bag
+                           algorithm. Should not be used for a lot of input bits,
+                           see `Circuit.generate_dataset` docs for a detailed
+                           explanation why.
             TODO: Add more distributions
     samples: int
         Number of samples.
@@ -75,6 +79,19 @@ def get_random(bits: int, distribution='uniform', samples=1, **kwargs):
             random_value=int(math.floor(gauss(median,variance)))
             if low_limit<=random_value<=high_limit:
                 data.append(random_value)
+    elif distribution == 'shuffle_bag':
+        range_size = high_limit - low_limit
+        num_cycles = math.ceil(samples / range_size)
+
+        for i in range(num_cycles):
+            bag = list(range(low_limit, high_limit))
+            random.shuffle(bag)
+
+            samples_remaining = samples - len(data)
+            if samples_remaining > range_size:
+                data.extend(bag)
+            else:
+                data.extend(bag[0:samples_remaining])
     else:
         raise ValueError(f'{distribution} is not a valid distribution name')
 
