@@ -99,7 +99,6 @@ def main():
             for metric, value in validation_results.items():
                 print(f"{metric.value}: {metric.to_user_friendly_display(value)}")
 
-
     elif args.subcommand == "generate":
         generate_dataset(args)
 
@@ -182,6 +181,12 @@ def generate_arguments(generate_parser):
     generate_parser.add_argument("circuit", help="Verilog circuit file.")
     generate_parser.add_argument("dataset", help="Dataset file to generate.")
     generate_parser.add_argument(
+        "--distribution",
+        default="uniform",
+        choices=["gaussian", "uniform", "triangular", "shuffle_bag"],
+        help=".",
+    )
+    generate_parser.add_argument(
         "size",
         type=parse_generate,
         help="""The size of the dataset.
@@ -210,7 +215,7 @@ def generate_dataset(args: argparse.Namespace):
         max_inputs = 2 ** (len(circuit.inputs))
         size = round(max_inputs * size)
 
-    circuit.generate_dataset(args.dataset, size)
+    circuit.generate_dataset(args.dataset, size, args.distribution)
 
 
 if __name__ == "__main__":
