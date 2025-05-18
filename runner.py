@@ -190,6 +190,7 @@ def _run_decision_tree(config: ApproxSynthesisConfig) -> Circuit:
 
     tree.train(inputs, outputs)
     tree.to_verilog_file(exact_circuit.topmodule, APPROX_RTL)
+    print("Synthesizing circuit from trained decision tree, this might take a while...")
     tree_circuit = Circuit(
         APPROX_RTL, exact_circuit.tech_file, topmodule=exact_circuit.topmodule
     )
@@ -272,7 +273,7 @@ def _run_constant_inputs_outputs(
 
         node_to_delete = deletable_nodes.pop(0)
 
-        print(f"Pruning node {node_to_delete.attrib['var']}")
+        print(f"Iteration {iteration+1}: Pruning node {node_to_delete.attrib['var']}")
         node_to_delete.set("delete", "yes")
 
         if config.resynthesis:
@@ -327,7 +328,7 @@ def _run_probprun(config: ApproxSynthesisConfig) -> Circuit:
         )
 
         print(
-            f"Pruning node {node_to_delete} because it's {output} {time_percent}% of the time"
+            f"Iteration {iteration+1}: Pruning node {node_to_delete} because it's {output} {time_percent}% of the time"
         )
         node_to_delete.set("delete", "yes")
 
@@ -377,7 +378,7 @@ def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
             f"Node {node} suggested by GetbySignificance should be findable in the circuit"
         )
 
-        print(f"Pruning node {node} because its significance is {significance}")
+        print(f"Iteration {iteration+1}: Pruning node {node} because its significance is {significance}")
         node_to_delete.set("delete", "yes")
 
         if config.resynthesis:
@@ -437,7 +438,7 @@ def _run_ccarving(config: ApproxSynthesisConfig) -> Circuit:
         nodes_to_delete = cuts[0]
         nodes_to_delete_names = [n.attrib["var"] for n in nodes_to_delete]
 
-        print(f"Pruning nodes {nodes_to_delete_names} as a single cut...\n")
+        print(f"Iteration {iteration+1}: Pruning nodes {nodes_to_delete_names} as a single cut...\n")
         [n.set("delete", "yes") for n in nodes_to_delete]
 
         if config.resynthesis:
