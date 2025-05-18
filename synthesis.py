@@ -77,12 +77,12 @@ def resynthesis(netlist, tech, topmodule):
 
     netlist_path = os.path.dirname(netlist) + "/netlist.v"
 
-    file_text = file_text.replace("[[RTLFILENAME]]", netlist)
+    file_text = file_text.replace("[[RTLFILENAME]]", f'"{netlist}"')
     file_text = file_text.replace("[[TOPMODULE]]", topmodule)
-    file_text = file_text.replace("[[TECHNOLOGY]]", f'{current_dir}/templates/{tech}.v')
-    file_text = file_text.replace("[[NETLIST]]", netlist_path)
-    file_text = file_text.replace("[[LIBRARY]]", f"{current_dir}/templates/{tech}.lib")
-    file_text = file_text.replace("[[LIBRARYABC]]", f"{current_dir}/templates/{tech}.lib")
+    file_text = file_text.replace("[[TECHNOLOGY]]", f'"{current_dir}/templates/{tech}.v"')
+    file_text = file_text.replace("[[NETLIST]]", f'"{netlist_path}"')
+    file_text = file_text.replace("[[LIBRARY]]", f'"{current_dir}/templates/{tech}.lib"')
+    file_text = file_text.replace("[[LIBRARYABC]]", f'"{current_dir}/templates/{tech}.lib"')
 
     file = open('resynth.ys',"w")
     file.write(file_text)
