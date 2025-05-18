@@ -502,23 +502,22 @@ class Circuit:
 
         top = self.topmodule
         current_dir=os.path.dirname(__file__)
-        tech = f"{current_dir}/templates/" + self.tech_file
+        tech = f"{current_dir}/templates/{self.tech_file}"
 
         # Executable is ran from the testbench folder, because the path to the
         # dataset is relative to the testbench file.
+        testbench = os.path.abspath(testbench)
         out = os.path.dirname(testbench)
-
-        """Better to temporarily change cwd when executing iverilog"""
-        cwd=os.getcwd()
-        os.chdir(current_dir)
 
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
-        kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
+        kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" \"{testbench}\" \"{rtl}\""
         system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        system(f"cd \"{out}\"; ./{top}")
+        cwd=os.getcwd()
+        os.chdir(out)
+        system(f"./{top}")
 
         os.chdir(cwd)
 
@@ -527,11 +526,9 @@ class Circuit:
 
         rename(out + "/output.txt", output_file)
 
-        return
-
 
     def simulate(self, testbench, approximate_output):
-        '''
+        """
         Simulates the circuit tree with deletions.
         Creates an executable using icarus, end then execute it to obtain the
         output of the testbench
@@ -544,36 +541,35 @@ class Circuit:
             Path to the output file where simulation results will be written.
             The user must provide the full file path and name. If the file
             exists, it will be overwritten.
-        '''
+        """
         rtl = f"{self.output_folder}/{get_name(5)}.v"
         self.write_to_disk(rtl)
 
         top = self.topmodule
-        tech = "./templates/" + self.tech_file
+        current_dir = os.path.dirname(__file__)
+        tech = f"{current_dir}/templates/{self.tech_file}"
 
         # Executable is ran from the testbench folder, because the path to the
         # dataset is relative to the testbench file.
+        testbench = os.path.abspath(testbench)
         out = os.path.dirname(testbench)
-
-        """Better to temporarily change cwd when executing iverilog"""
-        cwd=os.getcwd()
-        current_dir=os.path.dirname(__file__)
-        os.chdir(current_dir)
 
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
-        kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
+        kon = f'iverilog -l "{tech}.v" -o "{out}/{top}" "{testbench}" "{rtl}"'
         system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        system(f"cd \"{out}\"; ./{top}")
-        os.chdir(cwd)
+        cwd = os.getcwd()
+        os.chdir(out)
+        system(f"./{top}")
 
-        rename(out + "/output.txt", approximate_output)
+        os.chdir(cwd)
 
         remove(rtl)
         remove(f"{out}/{top}")
 
+        rename(out + "/output.txt", approximate_output)
 
     def simulate_and_compute_error (self, testbench, exact_output, new_output, metric):
         '''
