@@ -155,9 +155,8 @@ class Netlist:
 
         return root
 
-
     def get_inputs(self, netlist_rtl, raw_parameters):
-        '''
+        """
         Extracts the circuit's input variables.
 
         Inputs are returned in two ways:
@@ -181,21 +180,22 @@ class Netlist:
         -------
         tuple[list[str], list[str]]
             raw_inputs and circuit_inputs
-        '''
+        """
         raw_inputs = []
         circuit_inputs = []
         inputs = re.findall(
-            r'input\s*(\[([0-9]*):([0-9]*)\])*\s*([a-zA-Z0-9]*)',netlist_rtl)
+            r"input\s*(\[([0-9]*):([0-9]*)\])*\s*([a-zA-Z0-9]*)", netlist_rtl
+        )
         for i in inputs:
-            if i[0] != '':
+            if i[0] != "":
                 left = int(i[1])
                 right = int(i[2])
-                if (left > right):
-                    for x in range(left, right-1, -1):
-                        circuit_inputs.append(i[3]+'['+str(x)+']')
+                if left > right:
+                    for x in range(left, right - 1, -1):
+                        circuit_inputs.append(i[3] + "[" + str(x) + "]")
                 else:
-                    for x in range(left,right+1):
-                        circuit_inputs.append(i[3]+'['+str(x)+']')
+                    for x in range(left, right + 1):
+                        circuit_inputs.append(i[3] + "[" + str(x) + "]")
                 raw_inputs.append(f"input [{i[1]}:{i[2]}] {i[3]};")
             else:
                 circuit_inputs.append(f"{i[3]}")
@@ -205,9 +205,8 @@ class Netlist:
         raw_inputs = sort_raw_vars(raw_inputs, raw_parameters)
         return raw_inputs, circuit_inputs
 
-
     def get_outputs(self, netlist_rtl, raw_parameters):
-        '''
+        """
         Extracts the circuit's output variables.
 
         Outputs are returned in two ways:
@@ -232,20 +231,21 @@ class Netlist:
         -------
         tuple[list[str], list[str]]
             raw_outputs and circuit_outputs
-        '''
+        """
         raw_outputs = []
         circuit_outputs = []
         outputs = re.findall(
-            r'output\s*(\[([0-9]*):([0-9]*)\])*\s*([a-zA-Z0-9]*)',netlist_rtl)
+            r"output\s*(\[([0-9]*):([0-9]*)\])*\s*([a-zA-Z0-9]*)", netlist_rtl
+        )
         for o in outputs:
-            if o[0] != '':
+            if o[0] != "":
                 left = int(o[1])
                 right = int(o[2])
-                if (left > right):
-                    for x in range(left, right-1, -1):
+                if left > right:
+                    for x in range(left, right - 1, -1):
                         circuit_outputs.append(f"{o[3]}[{str(x)}]")
                 else:
-                    for x in range(left,right+1):
+                    for x in range(left, right + 1):
                         circuit_outputs.append(f"{o[3]}[{str(x)}]")
                 raw_outputs.append(f"output [{o[1]}:{o[2]}] {o[3]};")
             else:
@@ -338,7 +338,8 @@ def expand_range(expr):
             base, range_part = expr.split("[")
             range_part = range_part[:-1]
             start, end = map(int, range_part.split(":"))
-            return [f"{base}[{i}]" for i in range(start, end - 1, -1)]
+            step = -1 if start > end else 1
+            return [f"{base}[{i}]" for i in range(start, end + step, step)]
         else:
             return [expr]
     else:
@@ -391,6 +392,17 @@ def parse_assigns(content):
         - Ports mapped to wires by Yosys
         - Constant assignments in resynth
 
+    If the LHS is a full variable and the RHS is a concatenation or range with
+    multiple bits, the LHS is automatically expanded to match the RHS
+    bit width. For example:
+
+        assign out = { a[1], b[0] }
+
+    ...will produce:
+
+        [('out[1]', 'a[1]'),
+         ('out[0]', 'b[0]')]
+
     Parameters
     ----------
     content : string
@@ -408,20 +420,15 @@ def parse_assigns(content):
         ... assign foo[1:0] = bar[3:2];
         ... assign x = 0;
         ... assign { out[4:3], out[0:1] } = { in1[3], in2[1:0], in3[2] };
+        ... assign out = { in1[0:1], in2[0:1] }
         ... """
         >>> parse_assigns(code)
         [('a[2]', 'b[2]'),
          ('foo[1]', 'bar[3]'), ('foo[0]', 'bar[2]'),
          ('x', '0'),
-         ('out[4]', 'in1[3]'), ('out[3]', 'in2[1]'), ('out[0]', 'in2[0]'), ('out[1]', 'in3[2]')
+         ('out[4]', 'in1[3]'), ('out[3]', 'in2[1]'), ('out[0]', 'in2[0]'), ('out[1]', 'in3[2]'),
+         ('out[3]', 'in1[0]'), ('out[2]', 'in1[1]'), ('out[1]', 'in2[1]'), ('out[0]', 'in2[0]')
         ]
-
-    TODO: This method can't handle range or concatenated assignments to full
-    variables. For example in the following case it will cause a "Bit width
-    mismatch" error even if `out` is a 4 bit variable, because it doesn't know
-    that:
-
-        assign out = { in1[0:1], in2[0:1] }
     '''
     expreg = r"assign\s+(.*?)\s*=\s*(.*?);"
     assigns = re.findall(expreg, content)
@@ -429,8 +436,16 @@ def parse_assigns(content):
     for lhs, rhs in assigns:
         lhs_bits = expand_concat(lhs)
         rhs_bits = expand_concat(rhs)
+
+        # if LHS is a single bare name but RHS is wide, expand LHS to match
+        if len(lhs_bits) == 1 and lhs_bits[0] == lhs and len(rhs_bits) > 1:
+            width = len(rhs_bits)
+            # msb = width-1 down to 0
+            lhs_bits = [f"{lhs}[{i}]" for i in range(width - 1, -1, -1)]
+
         if len(lhs_bits) != len(rhs_bits):
             raise ValueError(f"Bit width mismatch: LHS {lhs_bits} != RHS {rhs_bits}")
+
         result.extend(zip(lhs_bits, rhs_bits))
     return result
 
