@@ -348,15 +348,16 @@ def expand_range(expr):
 
 def expand_constant(expr):
     """
-    Expands a Verilog-style constant variable expression into a flat list of
-    individual bits.
+    Expands a Verilog-style constant into a flat list of individual bits.
 
     Parameters
     ----------
     expr : string
-        A Verilog constant like "3'h6". Currently only supports hexadecimal
-        expressions, but that should be enough since that's how yosys assigns
-        constants.
+        A Verilog constant like "3'h6" or "4'd13". Only hexadecimal ('h) and
+        decimal ('d) formats are supported.
+        TODO: Support other bases like binary ('b) or octal ('o). Support for
+        these hasn't been added because we haven't run into a scenario where
+        yosys assigns a constant with these bases.
 
     Returns
     -------
@@ -370,15 +371,23 @@ def expand_constant(expr):
 
         >>> expand_constant("4'hd")
         [1, 1, 0, 1]
-    """
-    size, value = expr.split("'h")
-    size = int(size)
-    value = value.lower()
 
-    int_value = int(value, 16)
+        >>> expand_constant("4'd13")
+        [1, 1, 0, 1]
+    """
+    size, rest = expr.split("'")
+    size = int(size)
+    base = rest[0].lower()
+    value = rest[1:]
+
+    if base == "h":
+        int_value = int(value, 16)
+    elif base == "d":
+        int_value = int(value, 10)
+    else:
+        raise ValueError(f"Unsupported constant format: {expr}")
 
     bits = [(int_value >> i) & 1 for i in range(size - 1, -1, -1)]
-
     return bits
 
 
