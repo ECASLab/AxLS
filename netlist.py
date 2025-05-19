@@ -161,6 +161,10 @@ class Netlist:
         Extracts the input variables of the circuit
         TODO: support one bit variables
 
+        The `circuit_inputs` will be returned from MSB -> LSB. This is important
+        to provide the inputs in the correct order to methods that map a circuit
+        representation to a Verilog format, like the Decision Tree method.
+
         Parameters
         ----------
         netlist_rtl : string
@@ -180,7 +184,7 @@ class Netlist:
                 left = int(i[1])
                 right = int(i[2])
                 if (left > right):
-                    for x in range(right,left+1):
+                    for x in range(left, right-1, -1):
                         circuit_inputs.append(i[3]+'['+str(x)+']')
                 else:
                     for x in range(left,right+1):
@@ -196,6 +200,11 @@ class Netlist:
         '''
         Extracts the output variables of the circuit
         TODO: support one bit variables
+
+        The `circuit_outputs` will be returned from MSB -> LSB. This is
+        important to provide the outputs in the correct order to methods that
+        map a circuit representation to a Verilog format, like the Decision Tree
+        method.
 
         Parameters
         ----------
@@ -216,7 +225,7 @@ class Netlist:
                 left = int(o[1])
                 right = int(o[2])
                 if (left > right):
-                    for x in range(right,left+1):
+                    for x in range(left, right-1, -1):
                         circuit_outputs.append(f"{o[3]}[{str(x)}]")
                 else:
                     for x in range(left,right+1):

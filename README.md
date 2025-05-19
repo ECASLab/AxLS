@@ -9,6 +9,27 @@ Humberto Barrantes-García, student, Tecnológico de Costa Rica
 
 Roger Morales-Monge, student, Tecnológico de Costa Rica
 
+## Table of Contents
+
+1. [AxLS](#axls)
+2. [Authors](#authors)
+3. [Requirements](#requirements)
+   1. [Installing Yosys](#installing-yosys)
+   2. [Installing Icarus Verilog](#installing-icarus-verilog)
+   3. [Cloning benchmarks](#cloning-benchmarks)
+4. [Executing Demo](#executing-demo)
+5. [Using AxLS](#using-axls)
+   1. [Parsing a netlist](#parsing-a-netlist)
+   2. [Deleting a node](#deleting-a-node)
+   3. [Simulation and Error Estimation](#simulation-and-error-estimation)
+6. [ALS Algorithms](#als-algorithms)
+   1. [Pruning Algorithms](#pruning-algorithms)
+      - [InOuts](#inouts)
+      - [Pseudo-Probabilistic Pruning (ProbPrun)](#pseudo-probabilistic-pruning-probprun)
+   2. [ML Supervised Learning](#ml-supervised-learning)
+      - [Decision Tree (DT)](#decision-tree-dt)
+7. [Files and Folders](#files-and-folders)
+
 ## Requirements
 
 To use AxLS, Python, Yosys, and Icarus Verilog are required, at least in the
@@ -136,7 +157,7 @@ Nodes to delete if output 5 is constant
 ['_145_', '_144_']
 ```
 
-- Sample of what the Pseudo Probrun method would suggest:
+- Sample of what the Pseudo ProbPrun method would suggest:
 ```
 ProbPrun suggest delete the node _068_ because it's 0 75% of the time
 _069_ is 0 75% of the time
@@ -308,7 +329,7 @@ This should returns a number like the following:
 This framework currently provides 2 kinds of ALS algorithms:
 
 - Pruning algorithms
-- (TODO IN PROGRESS) ML Supervised Learning algorithms
+- ML Supervised Learning algorithms
 
 ### Pruning Algorithms
 
@@ -397,7 +418,7 @@ Nodes to delete if output 5 is constant
 ['_091_']
 ```
 
-#### Pseudo-Probabilistic Pruning (ProbPun)
+#### Pseudo-Probabilistic Pruning (ProbPrun)
 
 Suggests nodes to delete based on the toggling time a specific node keep a constant value (1 or 0) in their output.
 
@@ -478,11 +499,102 @@ _082_ is 0 75% of the tim
 
 These algorithms train an ML model based on a circuit's inputs and outputs in
 order to learn a generalized version of the boolean function, then maps the
-model into an approximate circuit.
+model into an approximate circuit, fully replacing the original circuit.
 
-TODO: Add methods here
+#### Decision Tree (DT)
 
- # Files and Folders
+This method works by training a DT on the input and output data of
+a real circuit. Then synthesizing that DT into a verilog circuit.
+
+Note that this method requires installing the `scikit-learn` package, since it
+leverages its DT implementation.
+
+The following diagram gives a simplified view of how the method operates:
+
+<p align="center">
+    <img src="images/decision_tree_method.png" alt="A diagram giving a rough overview of the steps explained below."/>
+</p>
+
+1. Import the `DecisionTreeCircuit` class, which wraps logic to train and
+   convert scikit-learn DTs into Boolean circuits.
+
+```python
+from ml_algorithms.decision_tree import DecisionTreeCircuit
+```
+
+2. Import the input and output datasets. For this we can use `read_dataset`.
+
+```python
+from utils import read_dataset
+
+# Example with RCA_4b benchmark
+NAME = "RCA_4b"
+INPUT = f"ALS-benchmark-circuits/{NAME}/dataset"
+ORIGINAL_OUTPUT = f"ALS-benchmark-circuits/{NAME}/output0.txt"
+DATASET_SIZE = 1000
+
+# We use base 16 because input datasets are generated in hexadecimal by default
+inputs = read_dataset(INPUT, 16, DATASET_SIZE)
+# We use base 10 because a testbench outputs are written in decimal
+outputs = read_dataset(ORIGINAL_OUTPUT, 10, DATASET_SIZE)
+```
+
+If we need to generate the datasets first, we can do this with the `Circuit.generate_dataset()` and `Circuit.exact_output()` methods:
+
+```python
+TB = f"ALS-benchmark-circuits/{NAME}/{NAME}_tb.v"
+
+original_circuit.generate_dataset(INPUT, DATASET_SIZE)
+original_circuit.exact_output(TB, ORIGINAL_OUTPUT)
+```
+
+3. Train the DT model:
+
+```python
+clf = DecisionTreeCircuit(original_circuit.inputs, original_circuit.outputs, max_depth=4)
+clf.train(inputs, outputs)
+```
+
+`max_depth` controls tree complexity. You can also pass any valid [sklearn.tree.DecisionTreeClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html) kwargs.
+
+4. Synthesize the approximate circuit from the trained DT model:
+
+```python
+APPROX_NAME = "tree_adder"
+APPROX_RTL = f"{APPROX_NAME}.v"
+
+clf.to_verilog_file(APPROX_NAME, APPROX_RTL)
+```
+
+5. Evaluate the approximate circuit:
+
+```python
+approx_circuit = Circuit(APPROX_RTL, "NanGate15nm")
+APPROX_OUTPUT = f"{APPROX_NAME}/output.txt"
+
+APPROX_TB = f"{APPROX_NAME}_tb.v"
+
+approx_circuit.write_tb(APPROX_TB, INPUT, DATASET_SIZE)
+
+error = approx_circuit.simulate_and_compute_error(APPROX_TB, ORIGINAL_OUTPUT, APPROX_OUTPUT, "mred")
+
+print(f"Mean Relative Error: {error * 100}%")
+print(f"Original Area: {original_circuit.get_area()}")
+print(f"Approximate Area: {approx_circuit.get_area()}")
+```
+
+This could return the following sample output:
+
+```
+Mean Relative Error: 22.90%
+Original Area: 6.586368
+Approximate Area: 3.293184
+```
+
+In this scenario, we have reduced the circuit's area in half, while only
+introducing around ~23% error.
+
+# Files and Folders
 
 Files and Folders description:
 
