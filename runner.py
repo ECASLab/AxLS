@@ -1,6 +1,7 @@
 from collections import deque
 from collections.abc import Callable
 import csv
+import copy
 import os
 import time
 from xml.etree import ElementTree
@@ -488,7 +489,6 @@ def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
 
 def _run_ccarving(config: ApproxSynthesisConfig) -> Circuit:
     circuit = config.circuit
-    circuit_root = circuit.netl_root
 
     assert config.error is not None, (
         f"'error' should be given when executing {config.method}"
@@ -513,12 +513,16 @@ def _run_ccarving(config: ApproxSynthesisConfig) -> Circuit:
     # as a config parameter.
     diff = "significance"
 
-    LabelCircuit(circuit_root, output_significances)
-
     while iteration < max_iters:
         print("Finding cuts...", flush=True)
+        circuit_root = circuit.netl_root
 
-        cuts = FindCut(circuit_root, diff_threshold, diff, harshness_level)
+        LabelCircuit(circuit_root, output_significances)
+        cuts = FindCut(circuit.netl_root, diff_threshold, diff, harshness_level)
+
+        if len(cuts) == 0:
+            print("No more cuts left to make")
+            return circuit
 
         nodes_to_delete = cuts[0]
         nodes_to_delete_names = [n.attrib["var"] for n in nodes_to_delete]
@@ -529,18 +533,28 @@ def _run_ccarving(config: ApproxSynthesisConfig) -> Circuit:
         [n.set("delete", "yes") for n in nodes_to_delete]
 
         if config.resynthesis:
-            circuit.resynth()
-
-        error = circuit.simulate_and_compute_error(
-            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
-        )
+            resynth_circuit = copy.copy(circuit)
+            resynth_circuit.resynth()
+            error = resynth_circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
+        else:
+            error = circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
 
         print(f"Pruned circuit error: {error}")
 
-        if iteration > 0 and error > config.error:
-            print("Error has overpassed threshold, undoing last prune\n")
-            [n.set("delete", "no") for n in nodes_to_delete]
+        if error > config.error:
+            print("Error has overpassed threshold, backtracking...\n")
+            circuit = _undo_prunes(
+                circuit, nodes_to_delete, config.error, config.resynthesis
+            )
+            os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
             break
+        else:
+            if config.resynthesis:
+                circuit = resynth_circuit
 
         iteration += 1
         os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
@@ -669,8 +683,11 @@ def _copy_last_n_lines(input_file: str, output_file: str, n: int) -> None:
 
 
 def _undo_prunes(
-    circuit, deleted_nodes: list[ElementTree.Element], error_threshold: float
-):
+    circuit,
+    deleted_nodes: list[ElementTree.Element],
+    error_threshold: float,
+    resynthesis: bool,
+) -> Circuit:
     """
     Will set the deleted_nodes "delete" propert to "no". Then simulates the
     circuit and if the error is less than the error_threshold it returns.
@@ -680,13 +697,26 @@ def _undo_prunes(
     for node in reversed(deleted_nodes):
         print(f"Undoing prune on node {node.attrib['var']}")
         node.set("delete", "no")
-        error = circuit.simulate_and_compute_error(
-            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
-        )
+        if resynthesis:
+            resynth_circuit = copy.copy(circuit)
+            resynth_circuit.resynth()
+            error = resynth_circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
+        else:
+            error = circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
         print(f"New error: {error}")
         if error < error_threshold:
             print("Error back to being under threshold, backtracking finished")
-            return
+            if resynthesis:
+                return resynth_circuit
+            else:
+                return circuit
 
     print("Reverted all prunes.")
-    return
+    if resynthesis:
+        return resynth_circuit
+    else:
+        return circuit
