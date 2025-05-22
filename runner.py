@@ -373,19 +373,26 @@ def _run_probprun(config: ApproxSynthesisConfig) -> Circuit:
             node.set("delete", "yes")
 
         if config.resynthesis:
-            circuit.resynth()
-
-        error = circuit.simulate_and_compute_error(
-            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
-        )
+            resynth_circuit = copy.copy(circuit)
+            resynth_circuit.resynth()
+            error = resynth_circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
+        else:
+            error = circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
 
         print(f"Pruned circuit error: {error}")
 
         if error > config.error:
             print("Error has overpassed threshold, backtracking...\n")
-            _undo_prunes(circuit, nodes_to_delete, config.error)
+            _undo_prunes(circuit, nodes_to_delete, config.error, config.resynthesis)
             os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
             break
+
+        if config.resynthesis:
+            circuit = resynth_circuit
 
         iteration += 1
         os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
