@@ -245,35 +245,58 @@ def _run_constant_inputs_outputs(
     max_iters = config.max_iters if config.max_iters else float("inf")
 
     while iteration < max_iters:
-        const_variables = _get_lsbs_up_to(circuit_variables, max_const_bit)
         deletable_nodes: list[ElementTree.Element]
+        nodes_to_delete: list[ElementTree.Element] = []
 
-        match inputs_or_outputs:
-            case "inputs":
-                deletable_nodes = GetInputs(circuit.netl_root, const_variables)
-            case "outputs":
-                deletable_nodes = GetOutputs(circuit.netl_root, const_variables)
-            case _:
-                raise ValueError("Invalid call to _run_constant_inputs_outputs")
+        while len(nodes_to_delete) < config.prunes_per_iteration:
+            const_variables = _get_lsbs_up_to(circuit_variables, max_const_bit)
 
-        # Filter Already deleted nodes
-        deletable_nodes = [
-            node for node in deletable_nodes if node.get("delete") != "yes"
-        ]
+            match inputs_or_outputs:
+                case "inputs":
+                    deletable_nodes = GetInputs(circuit.netl_root, const_variables)
+                case "outputs":
+                    deletable_nodes = GetOutputs(circuit.netl_root, const_variables)
+                case _:
+                    raise ValueError("Invalid call to _run_constant_inputs_outputs")
 
-        if len(deletable_nodes) == 0:
-            if set(const_variables) == set(circuit_variables):
-                # All variables have been set as const and all elected nodes
-                # have been deleted
-                return circuit
-            else:
-                max_const_bit += 1
-                continue
+            # Filter Already deleted nodes
+            deletable_nodes = [
+                node
+                for node in deletable_nodes
+                if (
+                    node.get("delete") != "yes"
+                    and node.attrib["var"]
+                    not in [
+                        node_to_delete.attrib["var"]
+                        for node_to_delete in nodes_to_delete
+                    ]
+                )
+            ]
 
-        node_to_delete = deletable_nodes.pop(0)
+            if len(deletable_nodes) == 0:
+                if set(const_variables) == set(circuit_variables):
+                    # All variables have been set as const and all elected nodes
+                    # have been deleted. This mean we already deleted all
+                    # possible nodes that could be deleted.
+                    if len(nodes_to_delete) != 0:
+                        # There might be some nodes to delete from a previous
+                        # iteration of this loop, so finish deleting those.
+                        break
+                    else:
+                        # Nothing left to do, finish execution.
+                        return circuit
+                else:
+                    max_const_bit += 1
+                    continue
 
-        print(f"Iteration {iteration+1}: Pruning node {node_to_delete.attrib['var']}")
-        node_to_delete.set("delete", "yes")
+            max_nodes_to_append = config.prunes_per_iteration - len(nodes_to_delete)
+            nodes_to_delete.extend(deletable_nodes[:max_nodes_to_append])
+
+        nodes_to_delete_names = [node.attrib["var"] for node in nodes_to_delete]
+        print(f"Iteration {iteration + 1}: Pruning nodes {nodes_to_delete_names}")
+
+        for node in nodes_to_delete:
+            node.set("delete", "yes")
 
         if config.resynthesis:
             circuit.resynth()
@@ -284,9 +307,10 @@ def _run_constant_inputs_outputs(
 
         print(f"Pruned circuit error: {error}")
 
-        if iteration > 0 and error > config.error:
-            print("Error has overpassed threshold, undoing last prune\n")
-            node_to_delete.set("delete", "no")
+        if error > config.error:
+            print("Error has overpassed threshold, backtracking...\n")
+            _undo_prunes(circuit, nodes_to_delete, config.error)
+            os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
             break
 
         iteration += 1
@@ -316,20 +340,37 @@ def _run_probprun(config: ApproxSynthesisConfig) -> Circuit:
     iteration = 0
     max_iters = config.max_iters if config.max_iters else float("inf")
 
-    for node, output, time_percent in GetOneNode(circuit_root):
-        if iteration >= max_iters:
-            break
+    probprun = GetOneNode(circuit_root)
+    while iteration < max_iters:
+        nodes_to_delete = []
+        nodes_info = []
 
-        node_to_delete = circuit_root.find(f"./node[@var='{node}']")
+        for (node, output, time_percent), _ in zip(
+            probprun, range(config.prunes_per_iteration)
+        ):
+            node_to_delete = circuit_root.find(f"./node[@var='{node}']")
 
-        assert node_to_delete is not None, (
-            f"Node {node} suggested by ProbPrun should be findable in the circuit"
-        )
+            assert node_to_delete is not None, (
+                f"Node {node} suggested by ProbPrun should be findable in the circuit"
+            )
+
+            nodes_to_delete.append(node_to_delete)
+            nodes_info.append((output, time_percent))
+
+        if len(nodes_to_delete) == 0:
+            # If no nodes were appended it means there's no nodes left to delete
+            return circuit
+
+        nodes_to_delete_names = [node.attrib["var"] for node in nodes_to_delete]
 
         print(
-            f"Iteration {iteration+1}: Pruning node {node_to_delete} because it's {output} {time_percent}% of the time"
+            f"Iteration {iteration + 1}: Pruning nodes {nodes_to_delete_names} because:"
         )
-        node_to_delete.set("delete", "yes")
+        for node, (output, time_percent) in zip(nodes_to_delete_names, nodes_info):
+            print(f"{node} is {output} {time_percent}% of the time")
+
+        for node in nodes_to_delete:
+            node.set("delete", "yes")
 
         if config.resynthesis:
             circuit.resynth()
@@ -340,9 +381,10 @@ def _run_probprun(config: ApproxSynthesisConfig) -> Circuit:
 
         print(f"Pruned circuit error: {error}")
 
-        if iteration > 0 and error > config.error:
-            print("Error has overpassed threshold, undoing last prune\n")
-            node_to_delete.set("delete", "no")
+        if error > config.error:
+            print("Error has overpassed threshold, backtracking...\n")
+            _undo_prunes(circuit, nodes_to_delete, config.error)
+            os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
             break
 
         iteration += 1
@@ -377,7 +419,9 @@ def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
             f"Node {node} suggested by GetbySignificance should be findable in the circuit"
         )
 
-        print(f"Iteration {iteration+1}: Pruning node {node} because its significance is {significance}")
+        print(
+            f"Iteration {iteration + 1}: Pruning node {node} because its significance is {significance}"
+        )
         node_to_delete.set("delete", "yes")
 
         if config.resynthesis:
@@ -389,7 +433,7 @@ def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
 
         print(f"Pruned circuit error: {error}")
 
-        if iteration > 0 and error > config.error:
+        if error > config.error:
             print("Error has overpassed threshold, undoing last prune\n")
             node_to_delete.set("delete", "no")
             break
@@ -437,7 +481,9 @@ def _run_ccarving(config: ApproxSynthesisConfig) -> Circuit:
         nodes_to_delete = cuts[0]
         nodes_to_delete_names = [n.attrib["var"] for n in nodes_to_delete]
 
-        print(f"Iteration {iteration+1}: Pruning nodes {nodes_to_delete_names} as a single cut...\n")
+        print(
+            f"Iteration {iteration + 1}: Pruning nodes {nodes_to_delete_names} as a single cut...\n"
+        )
         [n.set("delete", "yes") for n in nodes_to_delete]
 
         if config.resynthesis:
@@ -578,3 +624,27 @@ def _copy_last_n_lines(input_file: str, output_file: str, n: int) -> None:
 
     with open(output_file, "w") as outfile:
         outfile.writelines(last_n_lines)
+
+
+def _undo_prunes(
+    circuit, deleted_nodes: list[ElementTree.Element], error_threshold: float
+):
+    """
+    Will set the deleted_nodes "delete" propert to "no". Then simulates the
+    circuit and if the error is less than the error_threshold it returns.
+    Meant for backtracking the last iteration of prunes when the error threshold
+    is surpassed.
+    """
+    for node in reversed(deleted_nodes):
+        print(f"Undoing prune on node {node.attrib['var']}")
+        node.set("delete", "no")
+        error = circuit.simulate_and_compute_error(
+            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+        )
+        print(f"New error: {error}")
+        if error < error_threshold:
+            print("Error back to being under threshold, backtracking finished")
+            return
+
+    print("Reverted all prunes.")
+    return

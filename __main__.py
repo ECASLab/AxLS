@@ -28,6 +28,18 @@ def parse_generate(value):
                 f"Invalid generate_dataset value: {value}. Must be int or float."
             )
 
+def parse_positive_integer(value):
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "Invalid value: {value}. Must be a positive integer."
+        )
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"Invalid value: {value}. Should be a positive integer, x >= 1.")
+    return n
+
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -76,6 +88,7 @@ def main():
                 error=args.error,
                 validation=args.validation,
                 max_iters=args.max_iters,
+                prunes_per_iteration=args.prunes_per_iteration,
                 max_depth=args.max_depth,
                 one_tree_per_output=args.one_tree_per_output,
                 show_progress=args.show_progress,
@@ -144,6 +157,12 @@ def run_arguments(run_parser):
         "--max-iters",
         type=int,
         help="Maximum number of iterations for iterative methods.",
+    )
+    run_parser.add_argument(
+        "--prunes-per-iteration",
+        type=parse_positive_integer,
+        default=1,
+        help="Number of prunes carried out each iteration. Affects pruning methods except ccarving since it already prunes multiple nodes at a time.",
     )
     run_parser.add_argument(
         "--max-depth", type=int, help="Max depth for decision_tree method"

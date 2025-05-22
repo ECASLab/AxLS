@@ -98,7 +98,7 @@ class ApproxSynthesisConfig:
 
     error : float (0 < x <= 1), optional
         The maximum error threshold permitted. Required for iterative methods,
-        like pruning methods or ML methods with resynthesis.
+        i.e. pruning methods.
 
         The error used is the Mean Relative Error Distance.
 
@@ -119,7 +119,16 @@ class ApproxSynthesisConfig:
 
     max_iters : int, optional
         Maximum amount of iterations to execute. Used in iterative methods,
-        like pruning methods or ML methods with resynthesis.
+        i.e. pruning methods.
+
+    prunes_per_iteration : int, default=1
+        Number of pruning operations to perform per iteration during ALS.
+        Increasing this value can speed up pruning-based methods by reducing the
+        number of iterations. It doesn't affect ccarving since it already prunes
+        multiple nodes per iteration. If the resulting circuit exceeds the error
+        threshold, the algorithm backtracks to the last valid state before
+        continuing. If this parameter is too large, backtracking may take longer
+        than the initial search, especially for small circuits.
 
     max_depth : int, optional
         Required for 'decision_tree'.
@@ -177,6 +186,7 @@ class ApproxSynthesisConfig:
     error: float | None
     validation: float | None
     max_iters: int | None
+    prunes_per_iteration: int
     max_depth: int | None
     one_tree_per_output: bool
     output_significances: list[int] | None
@@ -193,6 +203,7 @@ class ApproxSynthesisConfig:
         error: float | None = None,
         validation: float | None = None,
         max_iters: int | None = None,
+        prunes_per_iteration: int = 1,
         max_depth: int | None = None,
         one_tree_per_output: bool = False,
         output_significances: list[int] | None = None,
@@ -216,6 +227,7 @@ class ApproxSynthesisConfig:
         self.error = _validate_error(error, self.method)
         self.validation = _validate_validation(validation)
         self.max_iters = max_iters
+        self.prunes_per_iteration = _validate_prunes_per_iteration(prunes_per_iteration)
 
         self.max_depth = _validate_max_depth(max_depth, self.method)
         self.one_tree_per_output = one_tree_per_output
@@ -356,7 +368,6 @@ def _validate_error(
 
     Required for:
     - all iterative methods
-    - methods that become iterative with resynthesis, like decision_tree
 
     Raises ValueError if missing in those cases.
     """
@@ -428,3 +439,9 @@ def _validate_output_significances(
             )
 
     return output_significances
+
+
+def _validate_prunes_per_iteration(prunes_per_iteration: int) -> int:
+    if prunes_per_iteration < 1:
+        raise ValueError("prunes_per_iteration must be at least 1.")
+    return prunes_per_iteration
