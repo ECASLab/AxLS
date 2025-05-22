@@ -399,12 +399,14 @@ def _run_probprun(config: ApproxSynthesisConfig) -> Circuit:
 
         if error > config.error:
             print("Error has overpassed threshold, backtracking...\n")
-            _undo_prunes(circuit, nodes_to_delete, config.error, config.resynthesis)
+            circuit = _undo_prunes(
+                circuit, nodes_to_delete, config.error, config.resynthesis
+            )
             os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
             break
-
-        if config.resynthesis:
-            circuit = resynth_circuit
+        else:
+            if config.resynthesis:
+                circuit = resynth_circuit
 
         iteration += 1
         os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
