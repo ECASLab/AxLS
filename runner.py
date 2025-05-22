@@ -430,34 +430,55 @@ def _run_significance(config: ApproxSynthesisConfig) -> Circuit:
     else:
         output_significances = []
 
-    for node, significance in GetbySignificance(circuit_root, output_significances):
-        if iteration >= max_iters:
-            break
+    nodes_sorted_by_significance = GetbySignificance(circuit_root, output_significances)
+    while iteration < max_iters:
+        nodes_to_delete = []
+        nodes_info = []
 
-        node_to_delete = circuit_root.find(f"./node[@var='{node}']")
+        for (node, significance), _ in zip(
+            nodes_sorted_by_significance, range(config.prunes_per_iteration)
+        ):
+            node_to_delete_ = circuit_root.find(f"./node[@var='{node}']")
 
-        assert node_to_delete is not None, (
-            f"Node {node} suggested by GetbySignificance should be findable in the circuit"
-        )
+            assert node_to_delete_ is not None, (
+                f"Node {node} suggested by GetbySignificance should be findable in the circuit"
+            )
+            nodes_to_delete.append(node_to_delete_)
+            nodes_info.append(significance)
 
+        nodes_to_delete_names = [node.attrib["var"] for node in nodes_to_delete]
         print(
-            f"Iteration {iteration + 1}: Pruning node {node} because its significance is {significance}"
+            f"Iteration {iteration + 1}: Pruning nodes {nodes_to_delete_names} because:"
         )
-        node_to_delete.set("delete", "yes")
+        for node, significance in zip(nodes_to_delete_names, nodes_info):
+            print(f"{node} has {significance} significance")
+
+        for node in nodes_to_delete:
+            node.set("delete", "yes")
 
         if config.resynthesis:
-            circuit.resynth()
-
-        error = circuit.simulate_and_compute_error(
-            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
-        )
+            resynth_circuit = copy.copy(circuit)
+            resynth_circuit.resynth()
+            error = resynth_circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
+        else:
+            error = circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
 
         print(f"Pruned circuit error: {error}")
 
         if error > config.error:
-            print("Error has overpassed threshold, undoing last prune\n")
-            node_to_delete.set("delete", "no")
+            print("Error has overpassed threshold, backtracking...\n")
+            circuit = _undo_prunes(
+                circuit, nodes_to_delete, config.error, config.resynthesis
+            )
+            os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
             break
+        else:
+            if config.resynthesis:
+                circuit = resynth_circuit
 
         iteration += 1
         os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
