@@ -260,7 +260,7 @@ def _run_constant_inputs_outputs(
                     raise ValueError("Invalid call to _run_constant_inputs_outputs")
 
             # Filter Already deleted nodes
-            deletable_nodes = [
+            deletable_nodes_filtered = [
                 node
                 for node in deletable_nodes
                 if (
@@ -273,11 +273,15 @@ def _run_constant_inputs_outputs(
                 )
             ]
 
-            if len(deletable_nodes) == 0:
+            max_nodes_to_append = config.prunes_per_iteration - len(nodes_to_delete)
+            nodes_to_delete.extend(deletable_nodes_filtered[:max_nodes_to_append])
+
+            if len(nodes_to_delete) == len(deletable_nodes):
+                # If all deletable nodes are in nodes_to_delete, we can increase
+                # max_const_bit and go again or exit if all the eligible
+                # variables (i.e. all inputs or all outputs) have been tried out
+                # as const variables.
                 if set(const_variables) == set(circuit_variables):
-                    # All variables have been set as const and all elected nodes
-                    # have been deleted. This mean we already deleted all
-                    # possible nodes that could be deleted.
                     if len(nodes_to_delete) != 0:
                         # There might be some nodes to delete from a previous
                         # iteration of this loop, so finish deleting those.
@@ -286,11 +290,10 @@ def _run_constant_inputs_outputs(
                         # Nothing left to do, finish execution.
                         return circuit
                 else:
+                    # All deletable nodes were added to nodes_to_delete but
+                    # there's still more nodes to delete, increase max_const_bit
                     max_const_bit += 1
                     continue
-
-            max_nodes_to_append = config.prunes_per_iteration - len(nodes_to_delete)
-            nodes_to_delete.extend(deletable_nodes[:max_nodes_to_append])
 
         nodes_to_delete_names = [node.attrib["var"] for node in nodes_to_delete]
         print(f"Iteration {iteration + 1}: Pruning nodes {nodes_to_delete_names}")
@@ -299,19 +302,28 @@ def _run_constant_inputs_outputs(
             node.set("delete", "yes")
 
         if config.resynthesis:
-            circuit.resynth()
-
-        error = circuit.simulate_and_compute_error(
-            TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
-        )
+            resynth_circuit = copy.copy(circuit)
+            resynth_circuit.resynth()
+            error = resynth_circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
+        else:
+            error = circuit.simulate_and_compute_error(
+                TB, EXACT_OUTPUT, TEMP_OUTPUT, Metric.MEAN_RELATIVE_ERROR_DISTANCE
+            )
 
         print(f"Pruned circuit error: {error}")
 
         if error > config.error:
             print("Error has overpassed threshold, backtracking...\n")
-            _undo_prunes(circuit, nodes_to_delete, config.error)
+            circuit = _undo_prunes(
+                circuit, nodes_to_delete, config.error, config.resynthesis
+            )
             os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
             break
+        else:
+            if config.resynthesis:
+                circuit = resynth_circuit
 
         iteration += 1
         os.replace(TEMP_OUTPUT, APPROX_OUTPUT)
