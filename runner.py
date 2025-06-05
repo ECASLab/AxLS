@@ -275,9 +275,11 @@ def _run_constant_inputs_outputs(
             ]
 
             max_nodes_to_append = config.prunes_per_iteration - len(nodes_to_delete)
-            nodes_to_delete.extend(deletable_nodes_filtered[:max_nodes_to_append])
+            for node in deletable_nodes_filtered[:max_nodes_to_append]:
+                nodes_to_delete.append(node)
+                deletable_nodes_filtered.remove(node)
 
-            if len(nodes_to_delete) == len(deletable_nodes):
+            if len(deletable_nodes_filtered) == 0:
                 # If all deletable nodes are in nodes_to_delete, we can increase
                 # max_const_bit and go again or exit if all the eligible
                 # variables (i.e. all inputs or all outputs) have been tried out
