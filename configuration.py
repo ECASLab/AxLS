@@ -170,13 +170,17 @@ class ApproxSynthesisConfig:
         just be left blank if not provided.
     """
 
-    # TODO: the configuration options included in the csv: resynthesis, error,
-    # max_depth and one_tree_per_output; were chosen arbitrarily and are not
-    # necessarily more interesting than other options not included. Perhaps the
-    # configuration options included in the CSV should also be configurable, or
-    # we should include any options that are not None, or we should always
-    # include every single possible option and metric in the csv, even those
-    # not specified.
+    # TODO: The csv option requires further thought/design.
+    #
+    # Currently, the configuration options included in the csv (resynthesis,
+    # error, max_depth and one_tree_per_output) were chosen arbitrarily given
+    # what was needed at the time when initially adding csv output; and are
+    # not necessarily more interesting in the general case than other options
+    # not included.
+    # Perhaps the configuration options included in the CSV should also be
+    # configurable, or we should include any options that are not None, or we
+    # should always include every single possible option and metric in the csv,
+    # even those not specified.
 
     method: AlsMethod
     circuit: Circuit
