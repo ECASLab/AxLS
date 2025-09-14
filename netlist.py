@@ -269,7 +269,7 @@ def expand_concat(expr):
 
     Returns
     -------
-    List[string]
+    list[string]
         A list of strings like ["a[3]", "a[2]", "a[1]", "a[0]", "b[1]", "c"].
 
     Examples
@@ -310,7 +310,7 @@ def expand_range(expr):
 
     Returns
     -------
-    List[string]
+    list[string]
         A list of strings or bits.
 
     Examples
@@ -361,7 +361,7 @@ def expand_constant(expr):
 
     Returns
     -------
-    List[int]
+    list[int]
         A list of bits like [1, 1, 0].
 
     Examples
@@ -419,7 +419,7 @@ def parse_assigns(content):
 
     Returns
     -------
-    List[Tuple[string, string]]
+    list[Tuple[string, string]]
         A list of (lhs, rhs) assignment pairs, one for each individual bit.
 
     Examples
