@@ -51,7 +51,12 @@ def compute_error(metric, original, approximate) -> float:
     original_len = len(original_output)
     approx_len = len(approximate_output)
 
-    assert original_len == approx_len, f"The output of the original and the approximate simulations doesn't match: {original_len}!={approx_len}. Make sure both outputs are being generated correctly."
+    assert original_len == approx_len, f"""
+The output of the original and the approximate simulations doesn't match: {original_len}!={approx_len}.
+Make sure both outputs are being generated correctly.
+Original output: {original}
+Approximate output: {approximate}
+"""
 
     # compute the error distance ED := |a - a'|
     error_distance = [abs(original_output[x] - approximate_output[x])
