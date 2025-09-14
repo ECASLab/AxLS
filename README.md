@@ -375,7 +375,7 @@ This framework currently provides 2 kinds of ALS algorithms:
 These algorithms suggest which nodes to delete based on circuit data or
 heuristics.
 
-TODO: Missing documentation on `ccarving` and `glpsignificance`
+**TODO: Missing documentation on `ccarving` and `glpsignificance`**
 
 #### InOuts
 
