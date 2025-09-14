@@ -202,7 +202,7 @@ def generate_arguments(generate_parser):
     generate_parser.add_argument(
         "--distribution",
         default="uniform",
-        choices=["gaussian", "uniform", "triangular", "shuffle_bag"],
+        choices=["uniform", "gaussian", "triangular", "shuffle_bag"],
         help=".",
     )
     generate_parser.add_argument(
