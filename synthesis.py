@@ -44,7 +44,7 @@ def synthesis (rtl, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    os.system ('yosys synth.ys;')
+    os.system ('yosys -q synth.ys;')
 
     # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
 
@@ -90,7 +90,7 @@ def resynthesis(netlist, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    os.system ('yosys resynth.ys;')
+    os.system ('yosys -q resynth.ys;')
 
     # - - - - - - - - - - - - - Delete temporal Files - - - - - - - - - - - -
 
@@ -134,7 +134,7 @@ def ys_get_area(netlist, tech, topmodule):
 
     # - - - - - - - - - - - - - - - Execute yosys - - - - - - - - - - - - - -
 
-    os.system (f'yosys stat.ys -l \"{yosys_log_path}\"')
+    os.system (f'yosys -q stat.ys -l \"{yosys_log_path}\"')
 
     # - - - - - - - - - - - - - - - Parse Area - - - - - - - - - - - - - - -
 
