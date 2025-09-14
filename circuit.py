@@ -4,7 +4,6 @@ import datetime
 
 from graphviz import Digraph
 from os import path, remove, system, rename
-from random import randint
 from re import findall
 import xml.etree.ElementTree as ET
 
