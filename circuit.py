@@ -146,10 +146,10 @@ class Circuit:
         Returns true if a node can be deleted, returns false if the node should
         be assigned a constant instead.
 
-        A node can be deleted if all its children nodes will be deleted as
-        well. If a node has children nodes or connects directly to an output of
-        the circuit, then the funcction will return false and the node should
-        be replaced with a constant.
+        A node can be deleted only if all its child nodes are also being
+        deleted. If the node has children, is connected directly to a circuit
+        output, or is itself a circuit output, the function returns false and
+        the node should be replaced with a constant.
 
         Parameters
         ----------
@@ -182,7 +182,9 @@ class Circuit:
         some_children_not_deleted = len(node_children_to_be_deleted) < len(node_children)
 
         node_has_outputs = connects_to_output or some_children_not_deleted
-        node_can_be_deleted = not node_has_outputs
+        node_is_output = wire in self.outputs
+
+        node_can_be_deleted = not node_has_outputs and not node_is_output
 
         return node_can_be_deleted
 
