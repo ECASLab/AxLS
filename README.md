@@ -19,9 +19,11 @@ Roger Morales-Monge, student, Tecnológico de Costa Rica
    3. [Cloning benchmarks](#cloning-benchmarks)
 4. [Executing Demo](#executing-demo)
 5. [Using AxLS](#using-axls)
-   1. [Parsing a netlist](#parsing-a-netlist)
-   2. [Deleting a node](#deleting-a-node)
-   3. [Simulation and Error Estimation](#simulation-and-error-estimation)
+   1. [CLI and simplified API usage](#cli-and-simplified-api-usage)
+   2. [Library usage](#library-usage)
+       1. [Parsing a netlist](#parsing-a-netlist)
+       2. [Deleting a node](#deleting-a-node)
+       3. [Simulation and Error Estimation](#simulation-and-error-estimation)
 6. [ALS Algorithms](#als-algorithms)
    1. [Pruning Algorithms](#pruning-algorithms)
       - [InOuts](#inouts)
@@ -179,7 +181,44 @@ Mean Error Distance of approximate circuit with node _101_ deleted: 3.979
 
 ## Using AxLS
 
-### Parsing a netlist
+AxLS can be used in multiple ways, either through a CLI, it also accepts configuration parameters programmatically in order to execute the ALS methods in a simplified way, or the ALS methods can be used directly—library style.
+
+### CLI and simplified API usage
+
+To print the help, run:
+
+```sh
+python . -h
+```
+
+The CLI has 2 subcommands:
+
+- `run` for executing an ALS method.
+- `generate` in order to generate datasets to be used by the ALS execution for simulation or (in the case of ML methods) training.
+
+Here's an example usage generating a dataset and executing an ALS method:
+
+```sh
+# Requires previously having cloned the ALS-benchmark-circuits repo (see cloning benchmarks section)
+CIRCUIT=ALS-benchmark-circuits/KS_16b/KS_16b.v
+# We generate a simulation dataset of 10k possible input/output pairs for the KS_16b circuit.
+# Uses a uniform distribution of inputs by default.
+python . generate $CIRCUIT test_dataset 10000
+# Run the inconst method, calculating the MRED, circuit area and execution time metrics,
+# accepting at max 20% error introduction, separating 10% of the dataset for validation,
+# and pruning 10 nodes per iteration.
+python . run inconst $CIRCUIT test_dataset mred time area --error 0.2 --validation 0.1 --prunes-per-iteration 10
+```
+
+The tool can also be used programmatically with an interface very similar to the CLI. By using the `run`
+method from `run.py` directly, passing in an `ApproxSynthesisConfig` configuration object.
+
+### Library usage
+
+This section introduces some basic concepts to manipulate a netlist directly
+which is a key part of employing the different ALS mehtods directly.
+
+#### Parsing a netlist
 
 1. First, import the `Circuit` class:
 
@@ -250,7 +289,7 @@ Using this node you can implement your own pruning algorithms. Because ElementTr
 
 
 
-### Deleting a node
+#### Deleting a node
 
 1. The first example method we provide to delete nodes is quite simple, just delete a node based on its name. You can do it in two different ways:
 
@@ -269,7 +308,7 @@ our_circuit.delete("_101_")
 
 When you set the attribute `delete` of a node to `yes`, it means that this node will be deleted the next time our circuit is saved in the filesystem. **The node will remain in the xml tree!** (just in case we need to revert a deletion).
 
-### Simulation and Error Estimation
+#### Simulation and Error Estimation
 
 Simulation stage and error estimation are executed inside one method called `simulate_and_compute_error`. But first, in order to execute a simulation and calculate its error you need to provide:
 
@@ -336,7 +375,7 @@ This framework currently provides 2 kinds of ALS algorithms:
 These algorithms suggest which nodes to delete based on circuit data or
 heuristics.
 
-TODO: Missing documentation on `ccarving` and `glpsignificance`
+**TODO: Missing documentation on `ccarving` and `glpsignificance`**
 
 #### InOuts
 
@@ -598,25 +637,26 @@ introducing around ~23% error.
 
 Files and Folders description:
 
-| Name                | Description                                                  | Used   |
-| ------------------- | ------------------------------------------------------------ | ------ |
-| prunning_algorithms | Folder containing pruning techniques implementations.        |        |
-| `inouts.py`         | Contains the implementation of `GetInputs` and `GetOutputs` example pruning methods. |        |
-| `probprun.py`       | Contains the implementation of a pseudo Probabilistic Pruning method. `GetOneNode` is a python generator. It will retrieve one node to delete each time it is called. |        |
-| templates           | Folder containing some libraries and scripts used for synthesis. |        |
-| `NanGate15nm.lib`   |                                                              |        |
-| `NanGate15nm.v`     |                                                              |        |
-| `synth.ys`          | Script to synthesize a circuit using yosys.                 |        |
-| `__main__.py`       | It executes the tool using the arguments from the command line. **Still in progress**. | **No** |
-| `barcas.py`         | Is the Pruning Implementation using the InOuts techniques.   | **NO** |
-| `circuit.py`        | Object that represents a circuit as a XML tree. Receives a rtl and a library in order to build the circuit and be able to simulate it. |        |
-| `circuiterror.py`   | Compares two outputs and computes different error metrics.   |        |
-| `demo.py`           | This file is a complete example of how the library should be used. |        |
-| `netlist.py`        | This class parses, extracts and represents the circuit from rtl into an object understandable by python. |        |
-| `poisonoak.config`  | This is going to be used along with `__main__.py` in order to execute poisonoak as an app, and not as a library. | **No** |
-| `poisonoak.help`    | Contains the menu and tool description of the poison oak app. | **No** |
-| `synthesis.py`      | Executes the synthesis script (in our case yosys) and clean the intermediate files generated. At the end returns the path of the netlist. |        |
-| `technology.py`     | This class parses, extracts and represents the technology library file into an object understandable by python. |        |
-| `test.py`           | This class implements some unit tests for the poison oak library. **Not implemented yet**. | **No** |
-| `utils.py`          | Some functions not related with any other class but useful.  |        |
+| Name                | Description                                                  |
+| ------------------- | ------------------------------------------------------------ |
+| `prunning_algorithms/` | Folder containing pruning techniques implementations.        |
+| `prunning_algorithms/inouts.py`         | Contains the implementation of `GetInputs` and `GetOutputs` example pruning methods. |
+| `prunning_algorithms/probprun.py`       | Contains the implementation of a pseudo Probabilistic Pruning method. `GetOneNode` is a python generator. It will retrieve one node to delete each time it is called. |
+| `ml_algorithms/`              | Folder containing ML techniques implementations.        |
+| `ml_algorithms/decision_tree` | Contains the implementation of the Decision Tree technique through the `DecisionTreeCircuit` class. |
+| `templates/`           | Folder containing some libraries and scripts used for synthesis. |
+| `templates/NanGate15nm.lib`   | Technology file from Nangate. |
+| `templates/NanGate15nm.v`     |                               |
+| `synth.ys`          | Script to synthesize a circuit using yosys.                 |
+| `__main__.py`       | It executes the tool using the arguments from the command line. |
+| `configuration.py`  | Contains a configuration class for executing an ALS flow. Used by the CLI, but can be used by other scripts to do executions programatically without delving into the library's details. |
+| `runner.py`  | Contains a `run` method which accepts a configuration class in order to execute one of the ALS methods. |
+| `circuit.py`        | Object that represents a circuit as a XML tree. Receives a rtl and a library in order to build the circuit and be able to simulate it. |
+| `circuiterror.py`   | Compares two outputs and computes different error metrics.   |
+| `demo.py`           | This file is a complete example of how the library should be used. |
+| `netlist.py`        | This class parses, extracts and represents the circuit from rtl into an object understandable by python. |
+| `synthesis.py`      | Executes the synthesis script (in our case yosys) and clean the intermediate files generated. At the end returns the path of the netlist. |
+| `technology.py`     | This class parses, extracts and represents the technology library file into an object understandable by python. |
+| `utils.py`          | Some functions not related with any other class but useful.  |
+| `test.py`           | Currently unused file, meant to be used for unit tests. Out of date. |
 

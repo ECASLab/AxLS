@@ -1,9 +1,9 @@
 import os
 import re
+import datetime
 
 from graphviz import Digraph
 from os import path, remove, system, rename
-from random import randint
 from re import findall
 import xml.etree.ElementTree as ET
 
@@ -37,7 +37,7 @@ class Circuit:
     '''
 
 
-    def __init__(self, rtl, tech, saif = ""):
+    def __init__(self, rtl, tech, saif = "", topmodule = None):
         '''
         Parse a rtl circuit into a xml tree using a specific technology library
 
@@ -49,14 +49,21 @@ class Circuit:
             path to the technology file
         saif : string
             path to the saif file
+        topmodule : string (optional)
+            name of the circuit module that we want to synthesize, if not
+            provided it will be inferred from the rtl filename
         '''
 
 
         self.rtl_file = rtl
         self.tech_file = tech
-        self.topmodule = rtl.split('/')[-1].replace(".v","")
-        self.netl_file = synthesis (rtl, tech, self.topmodule)
-        self.technology = Technology(tech)
+
+        if not topmodule:
+            topmodule = rtl.split('/')[-1].replace(".v","")
+
+        self.topmodule = topmodule
+        self.netl_file = synthesis (rtl, self.tech_file, self.topmodule)
+        self.technology = Technology(self.tech_file)
         # extract the usefull attributes of netlist
         netlist = Netlist(self.netl_file, self.technology)
         self.netl_root = netlist.root
@@ -138,10 +145,10 @@ class Circuit:
         Returns true if a node can be deleted, returns false if the node should
         be assigned a constant instead.
 
-        A node can be deleted if all its children nodes will be deleted as
-        well. If a node has children nodes or connects directly to an output of
-        the circuit, then the funcction will return false and the node should
-        be replaced with a constant.
+        A node can be deleted only if all its child nodes are also being
+        deleted. If the node has children, is connected directly to a circuit
+        output, or is itself a circuit output, the function returns false and
+        the node should be replaced with a constant.
 
         Parameters
         ----------
@@ -174,7 +181,9 @@ class Circuit:
         some_children_not_deleted = len(node_children_to_be_deleted) < len(node_children)
 
         node_has_outputs = connects_to_output or some_children_not_deleted
-        node_can_be_deleted = not node_has_outputs
+        node_is_output = wire in self.outputs
+
+        node_can_be_deleted = not node_has_outputs and not node_is_output
 
         return node_can_be_deleted
 
@@ -274,15 +283,15 @@ class Circuit:
 
 
 
-    def write_to_disk (self, filename=""):
+    def write_to_disk (self, filepath):
         '''
         Write the xml circuit into a netlist file considering the nodes to be
         deleted (marked with an attribute delete='yes')
 
-        Returns
-        -------
-        string
-            path of the recently created netlist
+        Parameters
+        ----------
+        filepath: string
+            Full file path to the generated file.
         '''
 
         def format_io(node, io):
@@ -291,9 +300,6 @@ class Circuit:
 
         nodes_to_delete = self.get_nodes_to_delete()
         to_be_deleted, to_be_assigned = self.get_wires_to_be_deleted()
-
-        filename = filename if filename != "" else str(randint(9999,999999))
-        filepath = f"{self.output_folder}{path.sep}{filename}.v"
 
         with open(filepath, 'w') as netlist_file:
 
@@ -310,15 +316,15 @@ class Circuit:
             for wire in self.get_circuit_wires():
                 if wire not in to_be_deleted:
                     writeln(netlist_file, f"\twire {wire};")
-            used_outputs=[]
+            used_ports=[]
             for output in self.raw_outputs:
-                if output not in used_outputs:
+                if output not in used_ports:
                     writeln(netlist_file, "\t" + output)
-                    used_outputs.append(output)
-            for output in self.raw_inputs:
-                if output not in used_outputs:
-                    writeln(netlist_file, "\t" + output)
-                    used_outputs.append(output)
+                    used_ports.append(output)
+            for input in self.raw_inputs:
+                if input not in used_ports:
+                    writeln(netlist_file, "\t" + input)
+                    used_ports.append(input)
 
             for node_var in self.get_circuit_nodes():
                 if node_var not in nodes_to_delete:
@@ -339,7 +345,6 @@ class Circuit:
                 writeln(netlist_file, assign)
 
             writeln(netlist_file, "endmodule")
-        return filepath
 
 
     def show (self, filename=None, show_deletes=False, view=True, format="png"):
@@ -493,25 +498,27 @@ class Circuit:
         '''
 
 
-        name = get_name(5)
-        rtl = self.write_to_disk(name)
+        rtl = f"{self.output_folder}/{get_name(5)}.v"
+        self.write_to_disk(rtl)
 
         top = self.topmodule
         current_dir=os.path.dirname(__file__)
-        tech = f"{current_dir}/templates/" + self.tech_file
-        out = self.output_folder
+        tech = f"{current_dir}/templates/{self.tech_file}"
 
-        """Better to temporarily change cwd when executing iverilog"""
-        cwd=os.getcwd()
-        os.chdir(current_dir)
+        # Executable is ran from the testbench folder, because the path to the
+        # dataset is relative to the testbench file.
+        testbench = os.path.abspath(testbench)
+        out = os.path.dirname(testbench)
 
         # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
         # iverilog -l tech.v -o executable testbench.v netlist.v
-        kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
+        kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" \"{testbench}\" \"{rtl}\""
         system(kon)
 
         # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        system(f"cd \"{out}\"; ./{top}")
+        cwd=os.getcwd()
+        os.chdir(out)
+        system(f"./{top}")
 
         os.chdir(cwd)
 
@@ -520,9 +527,52 @@ class Circuit:
 
         rename(out + "/output.txt", output_file)
 
-        return
 
-    def simulate_and_compute_error (self, testbench, metric, exact_output, new_output):
+    def simulate(self, testbench, approximate_output):
+        """
+        Simulates the circuit tree with deletions.
+        Creates an executable using icarus, end then execute it to obtain the
+        output of the testbench
+
+        Parameters
+        ----------
+        testbench : string
+            path to the testbench file
+        approximate_output : string
+            Path to the output file where simulation results will be written.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
+        """
+        rtl = f"{self.output_folder}/{get_name(5)}.v"
+        self.write_to_disk(rtl)
+
+        top = self.topmodule
+        current_dir = os.path.dirname(__file__)
+        tech = f"{current_dir}/templates/{self.tech_file}"
+
+        # Executable is ran from the testbench folder, because the path to the
+        # dataset is relative to the testbench file.
+        testbench = os.path.abspath(testbench)
+        out = os.path.dirname(testbench)
+
+        # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
+        # iverilog -l tech.v -o executable testbench.v netlist.v
+        kon = f'iverilog -l "{tech}.v" -o "{out}/{top}" "{testbench}" "{rtl}"'
+        system(kon)
+
+        # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
+        cwd = os.getcwd()
+        os.chdir(out)
+        system(f"./{top}")
+
+        os.chdir(cwd)
+
+        remove(rtl)
+        remove(f"{out}/{top}")
+
+        rename(out + "/output.txt", approximate_output)
+
+    def simulate_and_compute_error (self, testbench, exact_output, new_output, metric):
         '''
         Simulates the actual circuit tree (with deletions)
         Creates an executable using icarus, end then execute it to obtain the
@@ -532,9 +582,6 @@ class Circuit:
         ----------
         testbench : string
             path to the testbench file
-        metric : string
-            equation to compute the error
-            options med, wce, wcre,mred, msed
         exact_output : string
             Path to the output file of the original exact circuit to compare
             against. This file can be created with the `exact_output` method.
@@ -542,43 +589,18 @@ class Circuit:
             Path to the output file where simulation results will be written.
             The user must provide the full file path and name. If the file
             exists, it will be overwritten.
-        clean : bool
-            if true, deletes all the generated files
+        metric : string
+            equation to compute the error
+            options med, wce, wcre,mred, msed
 
         Returns
         -------
         float
             error of the current circuit tree
         '''
-
-
-        name = get_name(5)
-        rtl = self.write_to_disk(name)
-
-        top = self.topmodule
-        tech = "./templates/" + self.tech_file
-        out = self.output_folder
-
-        """Better to temporarily change cwd when executing iverilog"""
-        cwd=os.getcwd()
-        current_dir=os.path.dirname(__file__)
-        os.chdir(current_dir)
-
-        # - - - - - - - - - - - - - - - Execute icarus - - - - - - - - - - - - -
-        # iverilog -l tech.v -o executable testbench.v netlist.v
-        kon = f"iverilog -l \"{tech}.v\" -o \"{out}/{top}\" {testbench} \"{rtl}\""
-        system(kon)
-
-        # - - - - - - - - - - - - - Execute the testbench  - - - - - - - - - - -
-        system(f"cd \"{out}\"; ./{top}")
-        os.chdir(cwd)
-
-        rename(out + "/output.txt", new_output)
+        self.simulate(testbench, new_output)
 
         error = compute_error(metric, exact_output, new_output)
-
-        remove(rtl)
-        remove(f"{out}/{top}")
 
         return error
 
@@ -603,7 +625,26 @@ class Circuit:
                 "gaussian" or "normal" for a normal distribution.
                 "uniform" or "rectangular" for a uniform distribution.
                 "triangular" for a triangular distribution.
+                "shuffle_bag": It's "uniform-like", but avoids repeating values
+                               until the full dataset has been used, employing a
+                               shuffle bag algorithm.
                 TODO: Add more distributions
+
+            shuffle_bag WARNING ⚠️:
+            -----------------------
+                This mode generates a complete list of all possible input
+                combinations in memory, then shuffles and samples from it. It
+                guarantees no repeats, but is very memory intensive.
+
+                For circuits with:
+                  - 32 inputs: needs ~4.3 billion entries (~137GB RAM)
+                  - 16 inputs: only ~65,536 entries (~2MB RAM)
+
+                This is regardless of how many samples you're actually
+                grabbing! Even if you only grab 1 sample the full dataset will
+                be instantiated.
+
+                Use only for small circuits (preferably under 16 inputs).
 
         **kwargs: (optional)
 
@@ -639,18 +680,40 @@ class Circuit:
             else:
                 inputs_info[name]=1
 
-        '''Iterate inputs'''
+        format=f'0{bitwidth}b' if format=='b' else format #ensure right number of bits if binary
 
-        for bitwidth in inputs_info.values():
-            rows=get_random(bitwidth,distribution,samples, **kwargs)
-            format=f'0{bitwidth}b' if format=='b' else format #ensure right number of bits if binary
-            data.append([f'{i:{format}}' for i in rows])
-        data=list(zip(*data)) # Transpose data see: https://stackoverflow.com/questions/10169919/python-matrix-transpose-and-zip
+        '''Iterate inputs'''
+        if distribution == "shuffle_bag":
+            # Shuffle bag needs to generate all the inputs together to ensure
+            # avoiding repetition of the circuit's inputs as a whole.
+            #
+            # This means that if the circuit has 2 inputs of 4 bits, we don't
+            # want to generate all possible 4 bit combinations for each input.
+            # We want to generate all possible 8 bit combinations and then split
+            # those into 2 4 bit inputs.
+            total_bits = sum(inputs_info.values())
+            inputs = get_random(total_bits, distribution, samples, **kwargs)
+            for input in inputs:
+                shift_right = total_bits
+                row = []
+                for bitwidth in inputs_info.values():
+                    shift_right -= bitwidth
+                    mask = (1<< bitwidth)-1
+                    value = (input >> shift_right) & mask
+                    row.append(f'{value:{format}}')
+                data.append(row)
+
+        else:
+            for bitwidth in inputs_info.values():
+                rows=get_random(bitwidth,distribution,samples, **kwargs)
+                data.append([f'{i:{format}}' for i in rows])
+            data=list(zip(*data)) # Transpose data see: https://stackoverflow.com/questions/10169919/python-matrix-transpose-and-zip
+
         np.savetxt(filename,data,fmt='%s')
 
         return
 
-    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=False):
+    def write_tb(self, filename, dataset_file, iterations=None, timescale= '10ns / 1ps', delay=10, format='h', dump_vcd=None, show_progress=True):
         '''
         Writes a basic testbench for the circuit.
 
@@ -675,6 +738,11 @@ class Circuit:
                 'o' for octal
                 'd' for decimal
                 'b' for binary
+        show_progress: bool, default = True
+            Whether the testbench should print its progress as it executes.
+        dump_vcd (optional): str
+            If provided, executing the testbench will create a vcd file at the
+            given path.
 
         Returns
         -------
@@ -751,9 +819,14 @@ class Circuit:
               f'\n' \
 
         '''Initial statement'''
-        text= f'{text}initial begin\n $display("-- Beginning Simulation --");\n\n'
+        text= f'{text}initial begin\n'
+
+        if show_progress:
+            text += '$display("-- Beginning Simulation --");\n\n'
+
         if dump_vcd:
-            text=f'{text} $dumpfile("./{self.topmodule}.vcd");\n' \
+            relative_vcd_path = os.path.relpath(dump_vcd, start=os.path.dirname(filename))
+            text=f'{text} $dumpfile("{relative_vcd_path}");\n' \
                  f' $dumpvars(0,{self.topmodule}_tb);\n'
 
         relative_dataset_path = os.path.relpath(dataset_file, start=os.path.dirname(filename))
@@ -774,13 +847,16 @@ class Circuit:
              f'  #{delay}\n' \
              f'  $fwrite(file, "'
         for o in range(len(outputs_info.keys())):
-            text=f'{text}%d\\n '
-        text=f'{text}",'
-        for o in list(outputs_info.keys())[::-1][0:-1]:
+            text=f'{text}%d '
+        text=f'{text}\\n",'
+        for o in list(outputs_info.keys())[0:-1]:
             text= f'{text}{o},'
-        text= f'{text}{list(outputs_info.keys())[0]});\n'\
-            + f'  $display("-- Progress: %d/{iterations} --",i+1);\n'\
-              f' end\n' \
+        text= f'{text}{list(outputs_info.keys())[-1]});\n'
+
+        if show_progress:
+            text +=f'  $display("-- Progress: %d/{iterations} --",i+1);\n'
+
+        text = f'{text}end\n' \
               f' $fclose(file);\n' \
               f' $fclose(mem);\n' \
               f' $finish;\n' \
@@ -793,6 +869,284 @@ class Circuit:
 
         return
 
+    def generate_saif_from_vcd(
+        self, saif: str, vcd_file_path: str, verbose: bool = False
+    ) -> None:
+        """
+        Generates a SAIF file from a vcd file. A vcd file can be created by
+        running a simulation with a testbench that was created by created by
+        `write_tb` with a `dump_vcd` parameter.
+
+        The SAIF file is then parsed and the netlist annotated with execution
+        data.
+
+        Parameters
+        ----------
+        saif: string
+            Path to the saif file generated.
+        vcd_file_path: string
+            Path to the vcd file.
+            The user must provide the full file path and name. If the file
+            exists, it will be overwritten.
+        verbose: bool
+            Whether to print verbose output
+        """
+        saifversion = "2.0"
+        direction = "backward"
+        design = self.topmodule
+        vendor = "AxPy Inc"
+        program_name = "open_vcd2saif"
+        version = "v0"
+        divider = "/ "
+        timescale = "1 ps"
+
+        # 1st pass: get variables
+        var_list = []
+        level = 0
+
+        count = 0
+        total = 0
+
+        def file_read(filename):
+            for row in open(filename, "r"):
+                yield row.split("\n")[0]
+
+        vcd_file = file_read(vcd_file_path)
+
+        for line in vcd_file:
+            search = re.search(r"\$scope", line)
+            if search is not None:
+                ls = line.split()
+                parent = ls[2]
+                level += 1
+                continue
+
+            search = re.search(r"\$upscope", line)
+            if search is not None:
+                level -= 1
+                continue
+
+            search = re.search(r"\$var", line)
+            if search is not None:
+                ls = line.split()
+                name = ls[4]
+                alias = ls[3]
+                var_len = int(ls[2])
+                m = re.findall(r"\d+", ls[5])
+                flag_mult = 0
+                if len(m) == 2:
+                    n0 = int(m[1])
+                    flag_mult = 1
+                elif len(m) == 1:
+                    n0 = int(m[0])
+                    flag_mult = 1
+                else:
+                    n0 = 1
+
+                if var_len == 1:
+                    var_list.append(
+                        {
+                            "name": name,
+                            "alias": alias,
+                            "parent": parent,
+                            "level": level,
+                            "len": 1,
+                            "bit_index": n0,
+                            "multi_bit": flag_mult,
+                            "high": 0,
+                            "low": 0,
+                            "x": 0,
+                            "ig": 0,
+                            "last": "2",
+                            "toggle": 0,
+                        }
+                    )
+                else:
+                    for i in range(var_len):
+                        var_list.append(
+                            {
+                                "name": name,
+                                "alias": alias,
+                                "parent": parent,
+                                "level": level,
+                                "len": var_len,
+                                "bit_index": i,
+                                "multi_bit": flag_mult,
+                                "high": 0,
+                                "low": 0,
+                                "x": 0,
+                                "ig": 0,
+                                "last": "2",
+                                "toggle": 0,
+                            }
+                        )
+                continue
+            if verbose:
+                count += 1
+                print(f"Pass #1: {count}/{total}")
+
+        # 2nd pass: get values
+        time_step = 0
+        last_step = 0
+
+        count = 0
+        vcd_file = file_read(vcd_file_path)
+
+        for line in vcd_file:
+            if line != "":
+                if line[0] == "#":
+                    time_step = int(line[1:])
+
+                    # print('Time step: %d' % time_step)
+                    time_diff = time_step - last_step
+                    for var in var_list:
+                        if var["last"] == "1":
+                            var["high"] += time_diff
+                        elif var["last"] == "0":
+                            var["low"] += time_diff
+                        elif var["last"] == "x":
+                            var["x"] += time_diff
+                    last_step = time_step
+
+                elif line[0] == "b" and line[1] != "x":
+                    val, alias = line.split()
+                    val_len = len(val[1:])
+
+                    bit_index = val_len - 1
+                    for bit_char in val[1:]:
+                        bit_val = bit_char
+                        for var in var_list:
+                            if alias == var["alias"]:
+                                templateSize = "{0:0%db}" % (var["len"])
+                                word = templateSize.format(int(val[1:], 2))
+                                rev_word = word[::-1]
+                                if (
+                                    var["last"] != "2"
+                                    and var["last"] != rev_word[var["bit_index"]]
+                                ):
+                                    var["toggle"] += 1
+                                var["last"] = rev_word[var["bit_index"]]
+
+                        bit_index -= 1
+
+                elif line[0] == "0" or line[0] == "1" or line[0] == "x":
+                    bit_val = line[0]
+                    alias = line[1:]
+                    for var in var_list:
+                        if alias == var["alias"] and var["len"] == 1:
+                            if var["last"] != "2" and var["last"] != bit_val:
+                                var["toggle"] += 1
+                            var["last"] = bit_val
+            if verbose:
+                count += 1
+                print(f"Pass #2: {count}/{total}")
+
+        duration = time_step - 1
+        # 3rd pass: write file
+
+        text_level = 0
+        level = 0
+
+        count = 0
+        vcd_file = file_read(vcd_file_path)
+
+        def get_time_stamp():
+            now = datetime.datetime.now()
+            year = '{:02d}'.format(now.year)
+            month = '{:02d}'.format(now.month)
+            day = '{:02d}'.format(now.day)
+            hour = '{:02d}'.format(now.hour)
+            minute = '{:02d}'.format(now.minute)
+            second = '{:02d}'.format(now.second)
+            date_string = '{}-{}-{} {}:{}:{}'.format(month, day, year, hour, minute, second)
+            return date_string
+
+        saifile = open(saif, "w")
+
+        saifile.write("(SAIFILE\n")
+        saifile.write('(SAIFVERSION "%s")\n' % saifversion)
+        saifile.write('(DIRECTION "%s")\n' % direction)
+        saifile.write('(DESIGN "%s")\n' % design)
+        saifile.write('(DATE "%s")\n' % get_time_stamp())
+        saifile.write('(VENDOR "%s")\n' % vendor)
+        saifile.write('(PROGRAM_NAME "%s")\n' % program_name)
+        saifile.write('(VERSION "%s")\n' % version)
+        saifile.write("(DIVIDER %s)\n" % divider)
+        saifile.write("(TIMESCALE %s)\n" % timescale)
+        saifile.write("(DURATION %ld)\n" % duration)
+
+        def saif_indent_level(level):
+            space = ''
+            for _ in range(level):
+                space += '  '
+            return space
+
+        for line in vcd_file:
+            search = re.search(r"\$scope", line)
+            if search is not None:
+                ls = line.split()
+                name = ls[2]
+                saifile.write(
+                    "%s(INSTANCE %s\n" % (saif_indent_level(text_level), name)
+                )
+                text_level += 1
+                level += 1
+                saifile.write("%s(NET\n" % (saif_indent_level(text_level)))
+                text_level += 1
+
+                # put variables
+                for var in var_list:
+                    if var["parent"] == name and var["level"] == level:
+                        if var["multi_bit"] == 0:
+                            saifile.write(
+                                "%s(%s\n" % (saif_indent_level(text_level), var["name"])
+                            )
+                        else:
+                            saifile.write(
+                                "%s(%s\\[%d\\]\n"
+                                % (
+                                    saif_indent_level(text_level),
+                                    var["name"],
+                                    var["bit_index"],
+                                )
+                            )
+
+                        saifile.write(
+                            "%s  (T0 %d) (T1 %d) (TX %d)\n"
+                            % (
+                                saif_indent_level(text_level),
+                                var["low"],
+                                var["high"],
+                                var["x"],
+                            )
+                        )
+
+                        saifile.write(
+                            "%s  (TC %d) (IG %d)\n"
+                            % (saif_indent_level(text_level), var["toggle"], var["ig"])
+                        )
+
+                        saifile.write("%s)\n" % (saif_indent_level(text_level)))
+
+                text_level -= 1
+                saifile.write("%s)\n" % (saif_indent_level(text_level)))
+                continue
+
+            search = re.search(r"\$upscope", line)
+            if search is not None:
+                text_level -= 1
+                level -= 1
+                saifile.write("%s)\n" % (saif_indent_level(text_level)))
+
+            if verbose:
+                count += 1
+                print(f"Pass #3: {count}/{total}")
+
+        saifile.write(")\n")
+        saifile.close()
+
+        self.saif_parser(saif)
+
     def resynth(self):
         '''
         Calls resynthesis function to reduce circuit structure using logic synthesis optimizations/mapping
@@ -800,8 +1154,10 @@ class Circuit:
         :return: path-like string
             path to resynthetized file
         '''
-        name=get_name(5)
-        self.netl_file =resynthesis(self.write_to_disk(name),self.tech_file,self.topmodule)
+        rtl = f"{self.output_folder}/{get_name(5)}.v"
+        self.write_to_disk(rtl)
+
+        self.netl_file =resynthesis(rtl,self.tech_file,self.topmodule)
 
         netlist = Netlist(self.netl_file, self.technology)
         self.netl_root = netlist.root
@@ -811,7 +1167,7 @@ class Circuit:
         self.raw_outputs = netlist.raw_outputs
         self.raw_parameters = netlist.raw_parameters
 
-        os.remove(f'{self.output_folder}/{name}.v')
+        os.remove(rtl)
 
         return self.netl_file
 
@@ -825,9 +1181,10 @@ class Circuit:
         '''
 
         if method == 'yosys':
-            name=get_name(5)
-            area=ys_get_area(self.write_to_disk(name),self.tech_file,self.topmodule)
-            os.remove(f'{self.output_folder}/{name}.v')
+            rtl = f"{self.output_folder}/{get_name(5)}.v"
+            self.write_to_disk(rtl)
+            area=ys_get_area(rtl,self.tech_file,self.topmodule)
+            os.remove(rtl)
 
             return area
         else:

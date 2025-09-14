@@ -52,12 +52,12 @@ class Netlist:
         with open(netl_file, 'r') as circuit_file:
             content = circuit_file.read()
 
-        self.raw_outputs, self.circuit_outputs = self.get_outputs(content)
-        self.raw_inputs, self.circuit_inputs = self.get_inputs(content)
-
         expreg = r'module [a-zA-Z0-9_]*\s*\(([\s\S]+?)\);'
         parameters = re.search(expreg,content)
         self.raw_parameters = re.sub('\n','',parameters.group(1))
+
+        self.raw_outputs, self.circuit_outputs = self.get_outputs(content, self.raw_parameters)
+        self.raw_inputs, self.circuit_inputs = self.get_inputs(content, self.raw_parameters)
 
         assigns = parse_assigns(content)
         for a in assigns:
@@ -155,125 +155,110 @@ class Netlist:
 
         return root
 
+    def get_inputs(self, netlist_rtl, raw_parameters):
+        """
+        Extracts the circuit's input variables.
 
-    def get_inputs(self, netlist_rtl):
-        '''
-        Extracts the input variables of the circuit
+        Inputs are returned in two ways:
+        - `circuit_inputs`: expanded, sorted MSB→LSB, and follow the order in `raw_parameters`.
+        - `raw_inputs`: unexpanded lines, sorted to match the same order.
+
+        This ordering ensures compatibility with Verilog-generating methods like
+        the Decision Tree, which expect to receive bit-accurate and positionally
+        correct inputs in order to replicate them.
+
         TODO: support one bit variables
-
-        The `circuit_inputs` will be returned from MSB -> LSB. This is important
-        to provide the inputs in the correct order to methods that map a circuit
-        representation to a Verilog format, like the Decision Tree method.
 
         Parameters
         ----------
-        netlist_rtl : string
-            content of the netlist file
+        netlist_rtl : str
+            Content of the netlist file.
+        raw_parameters : str
+            Module's parameter list string.
 
         Returns
         -------
-        array
-            list of circuit intputs
-        '''
+        tuple[list[str], list[str]]
+            raw_inputs and circuit_inputs
+        """
         raw_inputs = []
         circuit_inputs = []
         inputs = re.findall(
-            r'input\s*(\[([0-9]*):([0-9]*)\])*\s*([a-zA-Z0-9]*)',netlist_rtl)
+            r"input\s*(\[([0-9]*):([0-9]*)\])*\s*([a-zA-Z0-9]*)", netlist_rtl
+        )
         for i in inputs:
-            if i[0] != '':
+            if i[0] != "":
                 left = int(i[1])
                 right = int(i[2])
-                if (left > right):
-                    for x in range(left, right-1, -1):
-                        circuit_inputs.append(i[3]+'['+str(x)+']')
+                if left > right:
+                    for x in range(left, right - 1, -1):
+                        circuit_inputs.append(i[3] + "[" + str(x) + "]")
                 else:
-                    for x in range(left,right+1):
-                        circuit_inputs.append(i[3]+'['+str(x)+']')
+                    for x in range(left, right + 1):
+                        circuit_inputs.append(i[3] + "[" + str(x) + "]")
                 raw_inputs.append(f"input [{i[1]}:{i[2]}] {i[3]};")
             else:
                 circuit_inputs.append(f"{i[3]}")
                 raw_inputs.append(f"input {i[3]};")
+
+        circuit_inputs = sort_expanded_vars(circuit_inputs, raw_parameters)
+        raw_inputs = sort_raw_vars(raw_inputs, raw_parameters)
         return raw_inputs, circuit_inputs
 
+    def get_outputs(self, netlist_rtl, raw_parameters):
+        """
+        Extracts the circuit's output variables.
 
-    def get_outputs(self, netlist_rtl):
-        '''
-        Extracts the output variables of the circuit
+        Outputs are returned in two ways:
+        - `circuit_outputs`: expanded, sorted MSB→LSB, and follow the order in `raw_parameters`.
+        - `raw_outputs`: unexpanded lines, sorted to match the same order.
+
+        This ordering ensures compatibility with Verilog-generating methods like
+        the Decision Tree, which expect to receive bit-accurate and positionally
+        correct inputs in order to replicate them.
+
         TODO: support one bit variables
-
-        The `circuit_outputs` will be returned from MSB -> LSB. This is
-        important to provide the outputs in the correct order to methods that
-        map a circuit representation to a Verilog format, like the Decision Tree
-        method.
 
         Parameters
         ----------
         netlist_rtl : string
             content of the netlist file
+        raw_parameters : str
+            Module's parameter list string.
+
 
         Returns
         -------
-        array
-            list of circuit outputs
-        '''
+        tuple[list[str], list[str]]
+            raw_outputs and circuit_outputs
+        """
         raw_outputs = []
         circuit_outputs = []
         outputs = re.findall(
-            r'output\s*(\[([0-9]*):([0-9]*)\])*\s*([a-zA-Z0-9]*)',netlist_rtl)
+            r"output\s*(\[([0-9]*):([0-9]*)\])*\s*([a-zA-Z0-9]*)", netlist_rtl
+        )
         for o in outputs:
-            if o[0] != '':
+            if o[0] != "":
                 left = int(o[1])
                 right = int(o[2])
-                if (left > right):
-                    for x in range(left, right-1, -1):
+                if left > right:
+                    for x in range(left, right - 1, -1):
                         circuit_outputs.append(f"{o[3]}[{str(x)}]")
                 else:
-                    for x in range(left,right+1):
+                    for x in range(left, right + 1):
                         circuit_outputs.append(f"{o[3]}[{str(x)}]")
                 raw_outputs.append(f"output [{o[1]}:{o[2]}] {o[3]};")
             else:
                 circuit_outputs.append(f"{o[3]}")
                 raw_outputs.append(f"output {o[3]};")
+
+        circuit_outputs = sort_expanded_vars(circuit_outputs, raw_parameters)
+        raw_outputs = sort_raw_vars(raw_outputs, raw_parameters)
         return raw_outputs, circuit_outputs
 
-def expand_range(name):
-    '''
-    Expands a Verilog-style bit range expression into a list of individual bits.
-
-    Parameters
-    ----------
-    name : string
-        A string like "a[3:0]" or "b[7]".
-
-    Returns
-    -------
-    List[string]
-        A list of strings like ["a[3]", "a[2]", "a[1]", "a[0]"].
-
-    Examples
-    -------
-        >>> expand_range("a[3:1]")
-        ['a[3]', 'a[2]', 'a[1]']
-
-        >>> expand_range("x[1:3]")
-        ['x[1]', 'x[2]', 'x[3]']
-
-        >>> expand_range("y[5]")
-        ['y[5]']
-
-        >>> expand_range("z")
-        ['z']
-    '''
-    m = re.match(r'(\w+)\[(\d+):(\d+)\]', name)
-    if not m:
-        return [name]
-    var, hi, lo = m.groups()
-    hi, lo = int(hi), int(lo)
-    step = -1 if hi > lo else 1
-    return [f"{var}[{i}]" for i in range(hi, lo + step, step)]
 
 def expand_concat(expr):
-    '''
+    """
     Expands a Verilog-style concatenation expression into a flat list of
     individual bits.
 
@@ -284,7 +269,7 @@ def expand_concat(expr):
 
     Returns
     -------
-    List[string]
+    list[string]
         A list of strings like ["a[3]", "a[2]", "a[1]", "a[0]", "b[1]", "c"].
 
     Examples
@@ -300,17 +285,111 @@ def expand_concat(expr):
 
         >>> expand_concat("b[1:0]")
         ['b[1]', 'b[0]']
-    '''
+    """
     expr = expr.strip()
-    if expr.startswith('{') and expr.endswith('}'):
+    if expr.startswith("{") and expr.endswith("}"):
         inner = expr[1:-1]
-        parts = [p.strip() for p in inner.split(',')]
+        parts = [p.strip() for p in inner.split(",")]
         bits = []
         for p in parts:
             bits.extend(expand_range(p))
         return bits
     else:
         return expand_range(expr)
+
+
+def expand_range(expr):
+    """
+    Expands a Verilog-style range expression into a flat list of individual bits
+    or constants.
+
+    Parameters
+    ----------
+    name : string
+        A Verilog signal, range or constant
+
+    Returns
+    -------
+    list[string]
+        A list of strings or bits.
+
+    Examples
+    -------
+        >>> expand_range("a[3:1]")
+        ['a[3]', 'a[2]', 'a[1]']
+
+        >>> expand_range("x[1:3]")
+        ['x[1]', 'x[2]', 'x[3]']
+
+        >>> expand_range("y[5]")
+        ['y[5]']
+
+        >>> expand_range("z")
+        ['z']
+
+        >>> expand_range("4'hd")
+        [1, 1, 0, 1]
+    """
+    expr = expr.strip()
+    if "'" in expr:
+        return expand_constant(expr)
+    elif "[" in expr:
+        if ":" in expr:
+            base, range_part = expr.split("[")
+            range_part = range_part[:-1]
+            start, end = map(int, range_part.split(":"))
+            step = -1 if start > end else 1
+            return [f"{base}[{i}]" for i in range(start, end + step, step)]
+        else:
+            return [expr]
+    else:
+        return [expr]
+
+
+def expand_constant(expr):
+    """
+    Expands a Verilog-style constant into a flat list of individual bits.
+
+    Parameters
+    ----------
+    expr : string
+        A Verilog constant like "3'h6" or "4'd13". Only hexadecimal ('h) and
+        decimal ('d) formats are supported.
+        TODO: Support other bases like binary ('b) or octal ('o). Support for
+        these hasn't been added because we haven't run into a scenario where
+        yosys assigns a constant with these bases.
+
+    Returns
+    -------
+    list[int]
+        A list of bits like [1, 1, 0].
+
+    Examples
+    -------
+        >>> expand_constant("1'h1")
+        [1]
+
+        >>> expand_constant("4'hd")
+        [1, 1, 0, 1]
+
+        >>> expand_constant("4'd13")
+        [1, 1, 0, 1]
+    """
+    size, rest = expr.split("'")
+    size = int(size)
+    base = rest[0].lower()
+    value = rest[1:]
+
+    if base == "h":
+        int_value = int(value, 16)
+    elif base == "d":
+        int_value = int(value, 10)
+    else:
+        raise ValueError(f"Unsupported constant format: {expr}")
+
+    bits = [(int_value >> i) & 1 for i in range(size - 1, -1, -1)]
+    return bits
+
 
 def parse_assigns(content):
     '''
@@ -322,6 +401,17 @@ def parse_assigns(content):
         - Ports mapped to wires by Yosys
         - Constant assignments in resynth
 
+    If the LHS is a full variable and the RHS is a concatenation or range with
+    multiple bits, the LHS is automatically expanded to match the RHS
+    bit width. For example:
+
+        assign out = { a[1], b[0] }
+
+    ...will produce:
+
+        [('out[1]', 'a[1]'),
+         ('out[0]', 'b[0]')]
+
     Parameters
     ----------
     content : string
@@ -329,7 +419,7 @@ def parse_assigns(content):
 
     Returns
     -------
-    List[Tuple[string, string]]
+    list[Tuple[string, string]]
         A list of (lhs, rhs) assignment pairs, one for each individual bit.
 
     Examples
@@ -339,28 +429,104 @@ def parse_assigns(content):
         ... assign foo[1:0] = bar[3:2];
         ... assign x = 0;
         ... assign { out[4:3], out[0:1] } = { in1[3], in2[1:0], in3[2] };
+        ... assign out = { in1[0:1], in2[0:1] }
         ... """
         >>> parse_assigns(code)
         [('a[2]', 'b[2]'),
          ('foo[1]', 'bar[3]'), ('foo[0]', 'bar[2]'),
          ('x', '0'),
-         ('out[4]', 'in1[3]'), ('out[3]', 'in2[1]'), ('out[0]', 'in2[0]'), ('out[1]', 'in3[2]')
+         ('out[4]', 'in1[3]'), ('out[3]', 'in2[1]'), ('out[0]', 'in2[0]'), ('out[1]', 'in3[2]'),
+         ('out[3]', 'in1[0]'), ('out[2]', 'in1[1]'), ('out[1]', 'in2[1]'), ('out[0]', 'in2[0]')
         ]
-
-    TODO: This method can't handle range or concatenated assignments to full
-    variables. For example in the following case it will cause a "Bit width
-    mismatch" error even if `out` is a 4 bit variable, because it doesn't know
-    that:
-
-        assign out = { in1[0:1], in2[0:1] }
     '''
-    expreg = r'assign\s+(.*?)\s*=\s*(.*?);'
+    expreg = r"assign\s+(.*?)\s*=\s*(.*?);"
     assigns = re.findall(expreg, content)
     result = []
     for lhs, rhs in assigns:
         lhs_bits = expand_concat(lhs)
         rhs_bits = expand_concat(rhs)
+
+        # if LHS is a single bare name but RHS is wide, expand LHS to match
+        if len(lhs_bits) == 1 and lhs_bits[0] == lhs and len(rhs_bits) > 1:
+            width = len(rhs_bits)
+            # msb = width-1 down to 0
+            lhs_bits = [f"{lhs}[{i}]" for i in range(width - 1, -1, -1)]
+
         if len(lhs_bits) != len(rhs_bits):
             raise ValueError(f"Bit width mismatch: LHS {lhs_bits} != RHS {rhs_bits}")
+
         result.extend(zip(lhs_bits, rhs_bits))
     return result
+
+
+def extract_param_names(raw_parameters):
+    """
+    Extracts the names of input/output/inout parameters from a module definition string.
+
+    Parameters
+    ----------
+    raw_parameters : str
+        String of the module's parameter list, e.g. "input a, output [3:0] b".
+
+    Returns
+    -------
+    list[str]
+        Ordered list of parameter names as they appear in the string.
+    """
+    return re.findall(
+        r"\b(?:input|output|inout)?\s*(?:\[.*?\]\s*)?(\w+)", raw_parameters
+    )
+
+
+def sort_expanded_vars(expanded_vars, raw_parameters):
+    """
+    Sorts a list of expanded signal names (e.g. in[3], in[2], ..., in[0])
+    based on their order in the module definition and from MSB to LSB.
+
+    Parameters
+    ----------
+    expanded_vars : list[str]
+        List of bit-level signal names.
+    raw_parameters : str
+        Module parameter list string for determining signal order.
+
+    Returns
+    -------
+    list[str]
+        Sorted list of expanded variables.
+    """
+    param_order = extract_param_names(raw_parameters)
+    order_map = {name: i for i, name in enumerate(param_order)}
+
+    def sort_key(var):
+        base, idx = re.match(r"(\w+)(?:\[(\d+)\])?", var).groups()
+        return (order_map[base], -int(idx) if idx else 0)
+
+    return sorted(expanded_vars, key=sort_key)
+
+
+def sort_raw_vars(raw_list, raw_parameters):
+    """
+    Sorts unexpanded input/output/inout declarations by the order of their
+    parameter names in the module definition.
+
+    Parameters
+    ----------
+    raw_list : list[str]
+        List of unexpanded variable declarations, e.g. "input [3:0] a;".
+    raw_parameters : str
+        Module parameter list string for determining signal order.
+
+    Returns
+    -------
+    list[str]
+        Sorted list of raw declarations.
+    """
+    param_order = extract_param_names(raw_parameters)
+    order_map = {name: i for i, name in enumerate(param_order)}
+
+    def sort_key(line):
+        match = re.search(r"(\w+)\s*;", line)
+        return order_map.get(match.group(1), float("inf")) if match else float("inf")
+
+    return sorted(raw_list, key=sort_key)

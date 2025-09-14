@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from typing import List
 import numpy as np
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree._tree import Tree
@@ -42,19 +41,19 @@ class DecisionTreeCircuit:
         Useful parameters include but are not limited to: max_depth,
     """
 
-    clf: DecisionTreeClassifier | List[DecisionTreeClassifier]
+    clf: DecisionTreeClassifier | list[DecisionTreeClassifier]
     one_tree_per_output: bool
-    inputs: List[CircuitVariable]
-    outputs: List[CircuitVariable]
+    inputs: list[CircuitVariable]
+    outputs: list[CircuitVariable]
     _trained: bool
 
-    circuit_inputs: List[str]
-    circuit_outputs: List[str]
+    circuit_inputs: list[str]
+    circuit_outputs: list[str]
 
     def __init__(
         self,
-        circuit_inputs: List[str],
-        circuit_outputs: List[str],
+        circuit_inputs: list[str],
+        circuit_outputs: list[str],
         one_tree_per_output=False,
         **kwargs,
     ):
@@ -72,7 +71,7 @@ class DecisionTreeCircuit:
         else:
             self.clf = DecisionTreeClassifier(**kwargs)
 
-    def train(self, X: List[List[int]], y: List[List[int]]):
+    def train(self, X: list[list[int]], y: list[list[int]]):
         """Train the decision tree classifier(s) with the training set (X, y).
 
         Parameters
@@ -120,7 +119,7 @@ class DecisionTreeCircuit:
         raw_inputs = [
             f"input {variable.name};"
             if variable.bits == 1
-            else f"input [{variable.bits}:0] {variable.name};"
+            else f"input [{variable.bits - 1}:0] {variable.name};"
             for variable in self.inputs
         ]
         raw_outputs = [
@@ -153,7 +152,7 @@ class DecisionTreeCircuit:
             f.write("endmodule\n")
 
 
-def _to_binary(x: List[List[int]], bit_widths: List[int]):
+def _to_binary(x: list[list[int]], bit_widths: list[int]):
     """Convert a list of lists of integers to a binary representation.
 
     This function takes a list input rows `x` and a list of bit widths
@@ -169,9 +168,9 @@ def _to_binary(x: List[List[int]], bit_widths: List[int]):
 
     Parameters
     ----------
-    x : List[List[int]]
+    x : list[list[int]]
         A list of lists of integers, where each inner list represents a row of input data.
-    bit_widths : List[int]
+    bit_widths : list[int]
         A list of integers, where each value represents the number of bits to use for the
         corresponding column in the input data.
 
@@ -215,7 +214,7 @@ def _to_binary(x: List[List[int]], bit_widths: List[int]):
     return result
 
 
-def _parse_circuit_variables(variable_list: List[str]):
+def _parse_circuit_variables(variable_list: list[str]):
     """Parse a list of circuit variable names and bit widths.
 
     TODO: This function should be put in a common module to be used by future ML
@@ -223,13 +222,13 @@ def _parse_circuit_variables(variable_list: List[str]):
 
     Parameters
     ----------
-    input_list : List[str]
+    input_list : list[str]
         A list of strings representing circuit variables, where each variable can be
         either a single-bit variable (e.g., 'cin') or a multi-bit variable (e.g., 'in1[3]').
 
     Returns
     -------
-    List[CircuitVariable]
+    list[CircuitVariable]
         A list of `CircuitVariable` objects, where each object represents a
         circuit variable with a name and bit width.
     """
@@ -269,16 +268,17 @@ def _tree_2_equation(
 
     Returns
     -------
-    str or None
-        A Boolean expression string for the subtree rooted at `node`, or None if
+    str or int
+        A Boolean expression string for the subtree rooted at `node`, or an int
+        if the output is constant for the subtree (0 or 1)
         the subtree always evaluates to 0.
     """
     if tree.feature[node] == -2:  # Leaf node
         result = tree.value[node][output].argmax()
         if result == 0:
-            return None
+            return 0
         else:
-            return "LEAF_NODE_1"
+            return 1
 
     else:  # Internal node
         left_result = _tree_2_equation(
@@ -294,24 +294,24 @@ def _tree_2_equation(
         negated_input = f"!{input}"
 
         match (left_result, right_result):
-            case (None, None):
-                return None
+            case (0, 0):
+                return 0
 
-            case (None, "LEAF_NODE_1"):
+            case (0, 1):
                 return input
-            case ("LEAF_NODE_1", None):
+            case (1, 0):
                 return negated_input
-            case ("LEAF_NODE_1", "LEAF_NODE_1"):
-                return "LEAF_NODE_1"
+            case (1, 1):
+                return 1
 
-            case (str(left), "LEAF_NODE_1"):
+            case (str(left), 1):
                 return f"{input} | ({left})"
-            case ("LEAF_NODE_1", str(right)):
+            case (1, str(right)):
                 return f"{negated_input} | ({right})"
 
-            case (str(left), None):
+            case (str(left), 0):
                 return f"{negated_input} & ({left})"
-            case (None, str(right)):
+            case (0, str(right)):
                 return f"{input} & ({right})"
             case (str(left), str(right)):
                 return f"({negated_input} & ({left})) | ({input} & ({right}))"
