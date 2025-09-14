@@ -71,7 +71,7 @@ Approximate output: {approximate}
 
     # Mean Hamming Distance see: https://stackoverflow.com/questions/40875282/fastest-way-to-get-hamming-distance-for-integer-array
     if (metric == "hd"):
-        hamming_distance=np.bitwise_xor(original_output,approximate_output)
+        hamming_distance=np.bitwise_xor(original_output,approximate_output, dtype=object)
         hamming_distance=[f'{hd:b}'.count('1') for hd in hamming_distance]
         return round(float(np.mean(hamming_distance)),3)
 
