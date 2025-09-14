@@ -19,7 +19,7 @@ Roger Morales-Monge, student, Tecnológico de Costa Rica
    3. [Cloning benchmarks](#cloning-benchmarks)
 4. [Executing Demo](#executing-demo)
 5. [Using AxLS](#using-axls)
-   1. [CLI and simple programmatic usage](#cli-and-simple-programmatic-usage)
+   1. [CLI and simplified API usage](#cli-and-simplified-api-usage)
    2. [Library usage](#library-usage)
        1. [Parsing a netlist](#parsing-a-netlist)
        2. [Deleting a node](#deleting-a-node)
@@ -183,7 +183,7 @@ Mean Error Distance of approximate circuit with node _101_ deleted: 3.979
 
 AxLS can be used in multiple ways, either through a CLI, it also accepts configuration parameters programmatically in order to execute the ALS methods in a simplified way, or the ALS methods can be used directly—library style.
 
-### CLI and simple programmatic usage
+### CLI and simplified API usage
 
 To print the help, run:
 
