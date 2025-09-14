@@ -687,6 +687,11 @@ class Circuit:
         if distribution == "shuffle_bag":
             # Shuffle bag needs to generate all the inputs together to ensure
             # avoiding repetition of the circuit's inputs as a whole.
+            #
+            # This means that if the circuit has 2 inputs of 4 bits, we don't
+            # want to generate all possible 4 bit combinations for each input.
+            # We want to generate all possible 8 bit combinations and then split
+            # those into 2 4 bit inputs.
             total_bits = sum(inputs_info.values())
             inputs = get_random(total_bits, distribution, samples, **kwargs)
             for input in inputs:
